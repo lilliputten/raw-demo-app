@@ -1,0 +1,4 @@
+*.tsx
+
+# Generated
+/src/core/global/css-params-generated.*

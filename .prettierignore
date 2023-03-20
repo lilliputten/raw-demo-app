@@ -1,0 +1,13 @@
+node_modules
+assets
+public
+publish
+build
+coverage
+.history
+.husky
+.vscode
+.dependencygraph
+.next
+package-lock.*
+**/*_

@@ -1,0 +1,38 @@
+<!--
+ @changed 2019.09.27, 08:18
+-->
+
+# Project environment
+
+- `package.json`
+- `babel.config.js`
+- `webpack.config.js`
+- `.eslintrc.js`
+- `.lvimrc`
+- `.git/config`
+
+# Project config
+
+- `src/config/config.js`
+- `src/config/css.js`
+- `src/config/app.js`
+- `src/config/constants.js`
+- `src/config/limits.js`
+
+# Core files
+
+- `src/index.jsx`
+- `src/pages/index.jsx`
+
+- `src/constants/index.jsx`
+- `src/i18n/languages.js`
+
+- `src/components/App.jsx`
+
+## Auth fake requests
+
+- `src/components/auth/AuthManager.jsx`
+
+## Source file extensions (for search & replace)
+
+`*.js,*.jsx,*.ts,*.tsx,*.less,*.pcss,*.css,*.bemhtml,*.bemjson,*.json,*.md,*.txt`

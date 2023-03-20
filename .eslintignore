@@ -1,0 +1,8 @@
+build*/
+assets/
+node_modules/
+.git/
+\!Work/
+**/*.min.js
+!webpack.config.js
+/package-lock.json

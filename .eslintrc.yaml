@@ -1,0 +1,88 @@
+# @changed 2023.03.08, 19:18
+# @see https://eslint.org/docs/rules/
+
+root: true
+
+# parser: 'babel-eslint'
+parser: '@babel/eslint-parser'
+extends:
+  - 'eslint:recommended'
+
+env:
+  # es6: true
+  # browser: true
+  # jest: true
+  node: true
+  # jest/globals: true
+
+rules:
+  no-console: warn
+  no-debugger: warn
+  no-extra-semi: warn
+  no-redeclare: warn
+  no-undef: error
+  no-unreachable: warn
+  prefer-const: warn
+  quotes:
+    - warn
+    - single
+  semi:
+    - warn
+    - always
+
+overrides:
+  - # Raw js files...
+    files: 'src/**/*.js'
+    parser: '@babel/eslint-parser'
+    env:
+      es6: true
+      browser: true
+      jquery: true
+      node: false
+    extends:
+      - 'eslint:recommended'
+      - 'plugin:prettier/recommended'
+      - 'plugin:import/recommended'
+      - 'plugin:jquery/slim'
+    plugins:
+      - 'prettier' # prettier: Slighly slower (+~0.3s)
+      - 'jquery'
+    rules:
+      prettier/prettier: 'warn'
+      no-unused-vars:
+        - 'warn'
+        - argsIgnorePattern: '^_'
+      no-console: 'warn'
+      no-debugger: 'warn'
+      no-extra-semi: 'warn'
+      no-redeclare: 'warn'
+      no-undef: 'error'
+      no-unreachable: 'warn'
+      prefer-const: 'warn'
+      quotes:
+        - warn
+        - single
+      semi:
+        - 'warn'
+        - 'always'
+
+  - # json files (@see https://www.npmjs.com/package/eslint-plugin-json)...
+    files: '**/*.json'
+    extends:
+      - 'plugin:json/recommended'
+    rules:
+      prettier/prettier: 'warn'
+
+  - # jsonc files - commented json (@see https://www.npmjs.com/package/eslint-plugin-jsonc)...
+    files: '**/*.jsonc'
+    extends:
+      - 'plugin:jsonc/recommended-with-jsonc'
+    rules:
+      prettier/prettier: 'warn'
+
+  - # yaml files - commented json (@see https://www.npmjs.com/package/eslint-plugin-yaml)...
+    files: '**/*.+(yml|yaml)'
+    extends:
+      - 'plugin:yaml/recommended'
+    rules:
+      prettier/prettier: 'warn'

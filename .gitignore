@@ -1,0 +1,54 @@
+# @changed 2021.09.22, 16:48
+
+# Environment & system files & folders
+.DS_Store
+node_modules*
+/.gitmodules
+\!UNUSED
+\!ARC
+
+# Builds
+/collected-artifatcs*
+/build*
+
+# IDE
+.idea
+# /.vscode/
+*.session
+
+# Temp project files
+tags
+
+# Test
+/test*
+
+# Swap, backup & temp files
+*.sw?
+*.tmp
+*.bak
+*~
+*_
+*.orig
+
+# Unresolved conflicts:
+*_BACKUP_*
+*_BASE_*
+*_LOCAL_*
+*_REMOTE_*
+
+# Collected crashed session files:
+*-crashed-session.txt
+*-crashed-session.tgz
+
+# Personal config files
+# .lvimrc
+# .projectroot
+webpack.env.local.js
+webpack.env.debug.js
+
+# Force including special editorconfig's
+!node_modules/.editorconfig
+
+# Force including of test files
+!__mocks__
+!__snapshots__
