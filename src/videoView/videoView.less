@@ -7,6 +7,7 @@
 
 .videoView {
   position: absolute;
+  overflow: hidden;
   top: 16px;
   right: 16px;
   width: 200px;
@@ -15,5 +16,10 @@
   background: #333;
   border-radius: 8px;
   box-shadow: 2px 2px 4px rgba(0,0,0,0.7);
-  .previewImage();
+  // .previewImage(); // DEBUG
+  display: flex;
+}
+
+.videoViewMedia {
+  flex: 1;
 }

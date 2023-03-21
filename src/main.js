@@ -1,13 +1,12 @@
-import { startPanoView } from './panoView/panoView.js';
+// import { startPanoView } from './panoView/panoView.js';
 import { startVideoView } from './videoView/videoView.js';
-import { showNotify } from './notify/notify.js';
+// import { showNotify } from './notify/notify.js';
 
 export function main() {
   // startPanoView();
   startVideoView();
-  // startNotify();
-  showNotify('info', 'Test message. Very long notification message content text.');
-  showNotify('error', 'Error text.');
-  showNotify('warn', 'Warning text.');
-  showNotify('success', 'Success text.');
+  // showNotify('info', 'Test message. Very long notification message content text.');
+  // showNotify('error', 'Error text.');
+  // showNotify('warn', 'Warning text.');
+  // showNotify('success', 'Success text.');
 }

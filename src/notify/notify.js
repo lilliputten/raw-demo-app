@@ -9,7 +9,6 @@ const timeoutDelay = 3000;
 const icons = {
   success: 'fa-check',
   error: 'fa-warning',
-  // error: 'fa-exclamation',
   warn: 'fa-bell',
   info: 'fa-info',
 };
@@ -26,7 +25,8 @@ function init() {
 }
 
 export function showNotify(mode, text) {
-  if (!mode) {
+  if (!text) {
+    text = mode;
     mode = 'info';
   }
   inited || init();
