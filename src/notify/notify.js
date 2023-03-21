@@ -56,3 +56,19 @@ export function showNotify(mode, text) {
   });
   // TODO: Stop timer on hover
 }
+
+export function showInfo(text) {
+  showNotify('info', text);
+}
+
+export function showSuccess(text) {
+  showNotify('success', text);
+}
+
+export function showWarn(text) {
+  showNotify('warn', text);
+}
+
+export function showError(text) {
+  showNotify('error', text);
+}

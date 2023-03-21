@@ -39,6 +39,7 @@
     <script>
       window.isDev = true;
       window.isGuide = window.location.search.includes('viewMode=guide');
+      window.shareScreen = window.location.search.includes('share=screen');
       // Initialize LESS parameters...
       less = {
         env: window.isDev ? 'development' : 'production',
