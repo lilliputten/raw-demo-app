@@ -6,6 +6,8 @@
 }
 
 .videoView {
+  background-color: #222;
+  // .previewImage(); // DEBUG
   position: absolute;
   overflow: hidden;
   top: 16px;
@@ -13,11 +15,14 @@
   width: 200px;
   height: 140px;
   border: 2px solid #000;
-  background: #333;
   border-radius: 8px;
   box-shadow: 2px 2px 4px rgba(0,0,0,0.7);
-  // .previewImage(); // DEBUG
   display: flex;
+  transition: opacity 500ms;
+  &:not(.visible) {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 .videoViewMedia {

@@ -1,24 +1,41 @@
+import { isGuide, panoSocketsPath, panoSocketsUrl, uniquePanoId, panoSkinUrl } from '../config.js';
+import { showError, showInfo, showSuccess } from '../notify/notify.js';
 import { PanoPlayer } from './PanoPlayer.js';
 
-// TODO: Move parameters to config/store?
-const panoSkinUrl = window.isDev
-  ? 'http://localhost:3001/kuskovo/002/' // Local dev server (eg: `http://localhost:3001/kuskovo/002/index.xml`)
-  : '/kuskovo/002/'; // Test server (eg: `https://360caster.com/kuskovo/002/index.xml`)
-const socketsUrl = window.isDev
-  ? 'http://localhost:8082/' // Local socket.io server
-  : '/'; // Production sockets address (`https://360caster.com:8082/`)
-const socketsPath = '/appId002/';
-
-const uniquePanoId = 'pano2vr-container'; // TODO: Generate unique id dynamicaly?
+let panoPlayer;
 
 export function startPanoView() {
-  const viewMode = window.isGuide ? 'guide' : 'visitor';
-  const panoPlayer = new PanoPlayer({
+  const viewMode = isGuide ? 'guide' : 'visitor';
+  showInfo('Starting panorama in "' + viewMode + '" mode...');
+  panoPlayer = new PanoPlayer({
     uniquePanoId,
     panoSkinUrl,
     viewMode,
-    socketsUrl,
-    socketsPath,
+    socketsUrl: panoSocketsUrl,
+    socketsPath: panoSocketsPath,
   });
-  panoPlayer.start();
+  panoPlayer
+    .start()
+    .then(() => {
+      showSuccess('Started panorama in "' + viewMode + '" mode');
+    })
+    .catch((error) => {
+      showError('Panorama start error: ' + String(error));
+    });
 }
+
+export function stopPanoView() {
+  panoPlayer.finish();
+  panoPlayer = undefined;
+  // TODO: Find and remove all created dom nodes, etc?
+}
+
+export function togglePanoView(isActive) {
+  if (isActive) {
+    startPanoView();
+  } else {
+    stopPanoView();
+  }
+}
+
+export function initPanoView() {}

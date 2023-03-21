@@ -1,30 +1,26 @@
+import { isGuide, videoAppId, videoServerUrl } from '../config.js';
 import { showInfo, showSuccess, showError } from '../notify/notify.js';
 
-// const mediasoup = require('mediasoup-client');
-// const socketClient = require('socket.io-client');
-// const socketPromise = require('./lib/socket.io-promise').promise;
-// const config = require('./config');
-
 import { socketPromise } from '../lib/socket.io-promise.js';
+import { toggleClassName } from '../helpers/dom.js';
 
-let remoteVideoRef; // Video window ref
+let nodeRef; // Self node ref
+
 let device;
 let socket;
-let videoProducer;
-let audioProducer;
+let videoProducer; // eslint-disable-line no-unused-vars
+let audioProducer; // eslint-disable-line no-unused-vars
 
 function connect() {
   return new Promise((resolve, reject) => {
     showInfo('Connecting...');
 
     const opts = {
-      path: '/appId003',
+      path: videoAppId,
       transports: ['websocket'],
     };
 
-    const serverUrl = 'https://360caster.com';
-    console.log('serverUrl: ', serverUrl);
-    socket = window.io(serverUrl, opts);
+    socket = window.io(videoServerUrl, opts);
     socket.request = socketPromise(socket);
 
     socket.on('connect', async () => {
@@ -32,7 +28,6 @@ function connect() {
       const data = await socket.request('getRouterRtpCapabilities');
       await loadDevice(data);
       resolve();
-      // subscribe();
     });
 
     socket.on('disconnect', () => {
@@ -40,8 +35,13 @@ function connect() {
     });
 
     socket.on('connect_error', (error) => {
-      console.error('could not connect to %s%s (%s)', serverUrl, opts.path, error.message);
-      debugger;
+      // eslint-disable-next-line no-console
+      console.error(
+        '[videoView:connect]: error: could not connect to %s%s (%s)',
+        videoServerUrl,
+        opts.path,
+        error.message,
+      );
       showError('Connection failed');
       reject(error);
     });
@@ -65,7 +65,7 @@ async function loadDevice(routerRtpCapabilities) {
 
 async function publish(isWebcam) {
   const showText = isWebcam ? 'webcam' : 'screen';
-  showInfo('Start publish ' + showText);
+  showInfo('Starting publish in "' + showText + '" mode');
 
   const data = await socket.request('createProducerTransport', {
     forceTcp: false,
@@ -73,7 +73,8 @@ async function publish(isWebcam) {
   });
 
   if (data.error) {
-    console.error(data.error);
+    // eslint-disable-next-line no-console
+    console.error('[videoView:publish]: error', data.error);
     return;
   }
 
@@ -90,8 +91,8 @@ async function publish(isWebcam) {
         rtpParameters,
       });
 
-      console.log('producer id :', id);
-      console.log('producer kind :', kind);
+      // console.log('producer id :', id);
+      // console.log('producer kind :', kind);
 
       callback({ id });
     } catch (err) {
@@ -105,8 +106,7 @@ async function publish(isWebcam) {
         showInfo('Publishing...');
         break;
       case 'connected':
-        // document.querySelector('#local_video').srcObject = videoStream;
-        remoteVideoRef.srcObject = videoStream;
+        nodeRef.srcObject = videoStream;
         showSuccess('Published');
         break;
       case 'failed':
@@ -142,7 +142,7 @@ async function publish(isWebcam) {
   }
 }
 
-async function getUserMedia(transport, isWebcam) {
+async function getUserMedia(_transport, isWebcam) {
   if (!device.canProduce('video')) {
     showError('Cannot produce video');
     return;
@@ -151,11 +151,12 @@ async function getUserMedia(transport, isWebcam) {
   let stream;
   try {
     stream = isWebcam
-      ? //await navigator.mediaDevices.getUserMedia({ video: true }) :
+      ? // await navigator.mediaDevices.getUserMedia({ video: true }) :
         await navigator.mediaDevices.getUserMedia({ video: true })
       : await navigator.mediaDevices.getDisplayMedia({ video: true });
   } catch (err) {
-    console.error('getUserMedia() failed:', err.message);
+    // eslint-disable-next-line no-console
+    console.error('[videoView:getUserMedia]: error: getUserMedia() failed:', err.message);
     throw err;
   }
   return stream;
@@ -163,17 +164,19 @@ async function getUserMedia(transport, isWebcam) {
 
 async function getUserAudioMedia(transport) {
   if (!device.canProduce('audio')) {
-    console.error('cannot produce audio');
+    // eslint-disable-next-line no-console
+    console.error('[videoView:getUserAudioMedia]: error: cannot produce audio');
     return;
   }
 
   let audioStream;
 
   try {
-    //await navigator.mediaDevices.getUserMedia({ video: true }) :
+    // await navigator.mediaDevices.getUserMedia({ video: true }) :
     audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (err) {
-    console.error('getUserMedia() failed:', err.message);
+    // eslint-disable-next-line no-console
+    console.error('[videoView:getUserAudioMedia]: error: getUserMedia() failed:', err.message);
     throw err;
   }
   return audioStream;
@@ -196,7 +199,7 @@ async function consume(transport) {
     codecOptions,
   });
 
-  //audio
+  // audio
   const audioData = await socket.request('consume_audio', { rtpCapabilities });
 
   /* let {
@@ -233,8 +236,7 @@ function subscribe() {
       .then((data) => {
         const { error } = data;
         if (error) {
-          console.error(data.error);
-          debugger;
+          console.error(data.error); // eslint-disable-line no-console
           reject(error);
         }
 
@@ -257,7 +259,7 @@ function subscribe() {
               showInfo('Subscribing...');
               break;
             case 'connected':
-              remoteVideoRef.srcObject = await stream;
+              nodeRef.srcObject = await stream;
               showSuccess('Subscribed');
               socket.request('resume').then(resolve).catch(reject);
               break;
@@ -272,11 +274,10 @@ function subscribe() {
   });
 }
 
-export function startVideoView() {
-  remoteVideoRef = document.querySelector('#videoViewMedia');
+function connectVideo() {
   connect()
     .then(() => {
-      if (window.isGuide) {
+      if (isGuide) {
         const isWebcam = !window.shareScreen;
         return publish(isWebcam);
       } else {
@@ -286,4 +287,26 @@ export function startVideoView() {
     .then(() => {
       showSuccess('Connected');
     });
+}
+
+export function startVideo() {
+  toggleClassName(nodeRef, 'visible', true);
+  connectVideo();
+}
+
+export function stopVideo() {
+  toggleClassName(nodeRef, 'visible', false);
+  // disconnectVideo(); // TODO?
+}
+
+export function toggleVideo(isVisible) {
+  if (isVisible) {
+    startVideo();
+  } else {
+    stopVideo();
+  }
+}
+
+export function initVideoView() {
+  nodeRef = document.querySelector('#videoView');
 }

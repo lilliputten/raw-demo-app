@@ -54,8 +54,10 @@ export function showNotify(mode, text) {
     notifyRoot.removeChild(node);
     clearTimeout(handler);
   });
-  // TODO: Stop timer on hover
+  // TODO: Stop timer on hover?
 }
+
+// Some shorthands...
 
 export function showInfo(text) {
   showNotify('info', text);

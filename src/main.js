@@ -1,12 +1,16 @@
-// import { startPanoView } from './panoView/panoView.js';
-import { startVideoView } from './videoView/videoView.js';
-// import { showNotify } from './notify/notify.js';
+import { initPanoView, togglePanoView } from './panoView/panoView.js';
+import { initVideoView, toggleVideo } from './videoView/videoView.js';
+import { initHeader } from './header/header.js';
+import { initFooter } from './footer/footer.js';
+import { showSuccess } from './notify/notify.js';
 
 export function main() {
-  // startPanoView();
-  startVideoView();
-  // showNotify('info', 'Test message. Very long notification message content text.');
-  // showNotify('error', 'Error text.');
-  // showNotify('warn', 'Warning text.');
-  // showNotify('success', 'Success text.');
+  initPanoView();
+  initVideoView();
+  initHeader();
+  initFooter({
+    onVideoToggle: toggleVideo,
+    onVrToggle: togglePanoView,
+  });
+  showSuccess('Application started');
 }

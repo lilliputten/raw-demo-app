@@ -115,9 +115,14 @@ export class PanoPlayer {
   }
 
   start() {
-    if (this.startPlayer() && this.startSockets() && this.initEvents()) {
-      this.started = true;
-    }
+    return new Promise((resolve, reject) => {
+      if (this.startPlayer() && this.startSockets() && this.initEvents()) {
+        this.started = true;
+        resolve();
+      } else {
+        reject('Failed'); // TODO: Provide fail reason?
+      }
+    });
   }
 
   finish() {
