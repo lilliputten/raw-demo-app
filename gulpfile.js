@@ -8,7 +8,7 @@ var gutil = require('gulp-util');
 
 function bundleMediasoup() {
   // set up the browserify instance on a task basis
-  var b = browserify({ entries: './src/lib/mediasoup-bundle-entry.js', debug: true });
+  var b = browserify({ entries: './mediasoup-bundle-entry.js', debug: true });
   return b.bundle()
   .pipe(source('mediasoup.js'))
   .pipe(buffer())
