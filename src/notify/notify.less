@@ -1,0 +1,70 @@
+@bk: 400px;
+
+.notifyRoot {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: stretch;
+  align-items: stretch;
+}
+
+.notify {
+  cursor: pointer;
+  // border: 1px solid red;
+  overflow: hidden;
+  background-color: rgba(0,0,0,0.85);
+  padding: 4px;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  gap: 8px;
+  // font-size: 85%;
+  @media (min-width: 400px) {
+    margin: 2px auto;
+    border-radius: 3px;
+    max-width: 400px;
+    width: 100%;
+  }
+  @media (min-width: 600px) {
+    max-width: 600px;
+  }
+  > .icon {
+    flex-shrink: 0;
+    background-color: #999;
+    color: #000;
+    padding: 4px;
+    @size: 16px;
+    width: @size;
+    height: @size;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    border-radius: 50%;
+  }
+  &_info {
+    // > .icon { background-color: #09c; }
+    // > .text { color: #09c; }
+  }
+  &_success {
+    > .icon { background-color: #3c3; }
+    > .text { color: #3c3; }
+  }
+  &_error {
+    > .icon { background-color: #f00; }
+    > .text { color: #f00; }
+  }
+  &_warn {
+    > .icon { background-color: #f90; }
+    > .text { color: #f90; }
+  }
+  > .text {
+    flex: 1;
+  }
+}

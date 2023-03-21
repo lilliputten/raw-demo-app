@@ -3,13 +3,10 @@
 # https://stylelint.io/user-guide/faq/#how-do-i-turn-off-disable-or-ignore-a-rule
 
 plugins:
-  # - "stylelint-scss"
   - 'stylelint-less'
-# syntax: scss
 customSyntax: 'postcss-less'
 
 extends: 'stylelint-config-recommended-less'
-# extends: stylelint-config-recommended-scss
 
 files:
   - 'src/**/*.{css,less}'
@@ -21,10 +18,8 @@ rules:
   indentation:
     - 2
     - severity: warning
-  # string-quotes: single
   block-no-empty: null
   no-invalid-double-slash-comments: true
-  # rule-empty-line-before: always
   declaration-colon-space-before: never
   declaration-colon-space-after: always
   media-feature-range-operator-space-before: never

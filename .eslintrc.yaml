@@ -3,7 +3,6 @@
 
 root: true
 
-# parser: 'babel-eslint'
 parser: '@babel/eslint-parser'
 extends:
   - 'eslint:recommended'
@@ -37,16 +36,16 @@ overrides:
     env:
       es6: true
       browser: true
-      jquery: true
+      # jquery: true
       node: false
     extends:
       - 'eslint:recommended'
       - 'plugin:prettier/recommended'
       - 'plugin:import/recommended'
-      - 'plugin:jquery/slim'
+      # - 'plugin:jquery/slim'
     plugins:
       - 'prettier' # prettier: Slighly slower (+~0.3s)
-      - 'jquery'
+      # - 'jquery'
     rules:
       prettier/prettier: 'warn'
       no-unused-vars:
