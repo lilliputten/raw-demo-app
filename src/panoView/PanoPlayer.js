@@ -37,6 +37,17 @@ export class PanoPlayer {
     }
   }
 
+  stopPlayer() {
+    if (this.started) {
+      // Destroy: this.pano, this.skin
+      this.pano.removePanorama();
+      this.skin.removeSkinHotspots();
+      this.pano = undefined;
+      this.skin = undefined;
+      return true;
+    }
+  }
+
   startSockets() {
     if (useSockets) {
       const { socketsUrl, socketsPath } = this.params;
@@ -51,7 +62,15 @@ export class PanoPlayer {
     return true;
   }
 
-  initGuideEvents() {
+  stopSockets() {
+    if (useSockets && this.socket) {
+      this.socket.destroy();
+      this.socket = undefined;
+    }
+    return true;
+  }
+
+  startGuideEvents() {
     this.pano.addListener('changenode', () => {
       this.socket?.emit('msgGuideOpen', {
         nodeId: this.pano.getCurrentNode(),
@@ -67,7 +86,7 @@ export class PanoPlayer {
     return true;
   }
 
-  initVisitorEvents() {
+  startVisitorEvents() {
     this.socket?.on('connect', () => {
       this.socket?.emit('msgJoin', { visitId: this.socket?.id });
     });
@@ -93,14 +112,33 @@ export class PanoPlayer {
     return true;
   }
 
-  initEvents() {
+  stopGuideEvents() {
+    this.pano.removeEventListener('changenode');
+    this.pano.removeEventListener('positionchanged');
+    return true;
+  }
+
+  stopVisitorEvents() {
+    this.socket?.off('connect');
+    this.socket?.off('msgInit');
+    this.socket?.off('msgMove');
+    this.socket?.off('msgOpen');
+    return true;
+  }
+
+  startEvents() {
     const { viewMode } = this.params;
-    return viewMode === 'guide' ? this.initGuideEvents() : this.initVisitorEvents();
+    return viewMode === 'guide' ? this.startGuideEvents() : this.startVisitorEvents();
+  }
+
+  stopEvents() {
+    const { viewMode } = this.params;
+    return viewMode === 'guide' ? this.stopGuideEvents() : this.stopVisitorEvents();
   }
 
   start() {
     return new Promise((resolve, reject) => {
-      if (this.startPlayer() && this.startSockets() && this.initEvents()) {
+      if (this.startPlayer() && this.startSockets() && this.startEvents()) {
         this.started = true;
         resolve();
       } else {
@@ -109,9 +147,12 @@ export class PanoPlayer {
     });
   }
 
-  finish() {
+  stop() {
     if (this.started) {
-      // TODO?
+      this.stopEvents();
+      this.stopSockets();
+      this.stopPlayer();
+      this.started = false;
     }
   }
 }

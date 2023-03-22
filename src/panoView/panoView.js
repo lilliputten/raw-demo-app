@@ -25,7 +25,7 @@ export function startPanoView() {
 }
 
 export function stopPanoView() {
-  panoPlayer.finish();
+  panoPlayer.stop();
   panoPlayer = undefined;
   // TODO: Find and remove all created dom nodes, etc?
 }
