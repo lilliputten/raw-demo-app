@@ -1,5 +1,5 @@
-import { initPanoView, startPanoView } from './panoView/panoView.js';
-import { initVideoView, startVideo } from './videoView/videoView.js';
+import { initPanoView, startPanoView, stopPanoView } from './panoView/panoView.js';
+import { initVideoView, startVideo, stopVideo } from './videoView/videoView.js';
 import { initHeader } from './header/header.js';
 import { initFooter, startFooter } from './footer/footer.js';
 import { showSuccess } from './notify/notify.js';
@@ -10,8 +10,10 @@ export function main() {
   initHeader();
   initFooter();
   startFooter({
-    onVideoClick: startVideo,
-    onVrClick: startPanoView,
+    onVideoStart: startVideo,
+    onVideoStop: stopVideo,
+    onVrStart: startPanoView,
+    onVrStop: stopPanoView,
   });
   showSuccess('Application started');
 }

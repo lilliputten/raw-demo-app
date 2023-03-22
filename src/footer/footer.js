@@ -1,17 +1,30 @@
 import { Button } from '../components/Button/Button.js';
 
-let footerNode, endButton, vrButton, audioButton, videoButton;
+let footerNode,
+  endButton,
+  vrStartButton,
+  audioStartButton,
+  videoStartButton,
+  vrStopButton,
+  audioStopButton,
+  videoStopButton;
 
 export function initFooter() {
   footerNode = document.querySelector('#footer');
+
   endButton = new Button(footerNode.querySelector('#endButton'));
-  vrButton = new Button(footerNode.querySelector('#vrButton'));
-  audioButton = new Button(footerNode.querySelector('#audioButton'));
-  videoButton = new Button(footerNode.querySelector('#videoButton'));
+
+  vrStartButton = new Button(footerNode.querySelector('#vrStartButton'));
+  audioStartButton = new Button(footerNode.querySelector('#audioStartButton'));
+  videoStartButton = new Button(footerNode.querySelector('#videoStartButton'));
+
+  vrStopButton = new Button(footerNode.querySelector('#vrStopButton'));
+  audioStopButton = new Button(footerNode.querySelector('#audioStopButton'));
+  videoStopButton = new Button(footerNode.querySelector('#videoStopButton'));
 }
 
 export function startFooter(params = {}) {
-  const { onVideoClick, onVrClick } = params;
+  const { onVrStart, onAudioStart, onVideoStart, onVrStop, onAudioStop, onVideoStop } = params;
 
   if (endButton) {
     endButton.enable();
@@ -22,21 +35,33 @@ export function startFooter(params = {}) {
     });
   }
 
-  if (vrButton) {
-    vrButton.enable();
-    vrButton.onClick(onVrClick);
+  if (vrStartButton && onVrStart) {
+    vrStartButton.enable();
+    vrStartButton.onClick(onVrStart);
   }
 
-  if (audioButton) {
-    // audioButton.enable();
-    audioButton.onClick(() => {
-      console.log('onClick audioButton');
-      debugger;
-    });
+  if (audioStartButton && onAudioStart) {
+    audioStartButton.enable();
+    audioStartButton.onClick(onAudioStart);
   }
 
-  if (videoButton) {
-    videoButton.enable();
-    videoButton.onClick(onVideoClick);
+  if (videoStartButton && onVideoStart) {
+    videoStartButton.enable();
+    videoStartButton.onClick(onVideoStart);
+  }
+
+  if (vrStopButton && onVrStop) {
+    vrStopButton.enable();
+    vrStopButton.onClick(onVrStop);
+  }
+
+  if (audioStopButton && onAudioStop) {
+    audioStopButton.enable();
+    audioStopButton.onClick(onAudioStop);
+  }
+
+  if (videoStopButton && onVideoStop) {
+    videoStopButton.enable();
+    videoStopButton.onClick(onVideoStop);
   }
 }

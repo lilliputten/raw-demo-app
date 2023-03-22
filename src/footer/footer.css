@@ -10,6 +10,7 @@
 }
 .footer > .left {
   flex: 1;
+  flex-wrap: wrap;
 }
 .footer > .right,
 .footer > .left {
