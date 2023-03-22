@@ -1,4 +1,4 @@
-import { isGuide, videoAppId, videoServerUrl } from '../config.js';
+import { isGuide, shareScreen, videoAppId, videoServerUrl } from '../config.js';
 import { showInfo, showSuccess, showError } from '../notify/notify.js';
 
 import { socketPromise } from '../lib/socket.io-promise.js';
@@ -278,7 +278,7 @@ function connectVideo() {
   connect()
     .then(() => {
       if (isGuide) {
-        const isWebcam = !window.shareScreen;
+        const isWebcam = !shareScreen;
         return publish(isWebcam);
       } else {
         return subscribe();

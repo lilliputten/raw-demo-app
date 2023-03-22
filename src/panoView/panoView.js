@@ -1,7 +1,9 @@
 import { isGuide, panoSocketsPath, panoSocketsUrl, uniquePanoId, panoSkinUrl } from '../config.js';
+import { removeAllChildren } from '../helpers/dom.js';
 import { showError, showInfo, showSuccess } from '../notify/notify.js';
 import { PanoPlayer } from './PanoPlayer.js';
 
+let panoNode;
 let panoPlayer;
 
 export function startPanoView() {
@@ -28,6 +30,7 @@ export function stopPanoView() {
   panoPlayer.stop();
   panoPlayer = undefined;
   // TODO: Find and remove all created dom nodes, etc?
+  removeAllChildren(panoNode);
 }
 
 export function togglePanoView(isActive) {
@@ -38,4 +41,6 @@ export function togglePanoView(isActive) {
   }
 }
 
-export function initPanoView() {}
+export function initPanoView() {
+  panoNode = document.querySelector('#' + uniquePanoId);
+}

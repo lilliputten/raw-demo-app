@@ -86,6 +86,12 @@ export class PanoPlayer {
     return true;
   }
 
+  stopGuideEvents() {
+    this.pano.removeEventListener('changenode');
+    this.pano.removeEventListener('positionchanged');
+    return true;
+  }
+
   startVisitorEvents() {
     this.socket?.on('connect', () => {
       this.socket?.emit('msgJoin', { visitId: this.socket?.id });
@@ -109,12 +115,6 @@ export class PanoPlayer {
     this.socket?.on('msgOpen', (msg) => {
       this.pano.openNext('{' + msg.nodeId + '}');
     });
-    return true;
-  }
-
-  stopGuideEvents() {
-    this.pano.removeEventListener('changenode');
-    this.pano.removeEventListener('positionchanged');
     return true;
   }
 

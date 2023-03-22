@@ -10,10 +10,10 @@
 }
 .footer > .left {
   flex: 1;
-  flex-wrap: wrap;
 }
 .footer > .right,
 .footer > .left {
+  flex-wrap: wrap;
   display: flex;
   gap: 8px;
 }

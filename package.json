@@ -59,7 +59,7 @@
     "eslint": "echo --Lint JS sources-- && eslint --max-warnings=0 --ext .yml,.yaml,.js,.ts,.tsx .",
     "lint": "echo --Lint all sources-- && npm-run-all stylelint eslint",
     "tags": "ctags -R --exclude=@.ctagsignore .",
-    "start": "echo --Serve code-- && serve . -l 3002",
+    "start": "echo --Serve code-- && serve . -l 3000",
     "help": "echo --List all available script commands-- && npm-package-user-scripts-list"
   },
   "dependencies": {

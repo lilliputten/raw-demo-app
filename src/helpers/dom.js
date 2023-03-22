@@ -5,3 +5,11 @@ export function toggleClassName(node, cls, isOn) {
     node.classList.remove(cls);
   }
 }
+
+export function removeAllChildren(node) {
+  if (node) {
+    while (node.firstChild) {
+      node.removeChild(node.firstChild);
+    }
+  }
+}
