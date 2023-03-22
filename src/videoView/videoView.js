@@ -162,7 +162,7 @@ async function getUserMedia(_transport, isWebcam) {
   return stream;
 }
 
-async function getUserAudioMedia(transport) {
+async function getUserAudioMedia(_transport) {
   if (!device.canProduce('audio')) {
     // eslint-disable-next-line no-console
     console.error('[videoView:getUserAudioMedia]: error: cannot produce audio');
