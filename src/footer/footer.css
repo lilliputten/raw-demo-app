@@ -7,13 +7,13 @@
   align-content: center;
   gap: 8px;
   padding: 8px;
-  position: relative;
-  > .left {
-    flex: 1;
-  }
-  > .right,
-  > .left {
-    display: flex;
-    gap: 8px;
-  }
 }
+.footer > .left {
+  flex: 1;
+}
+.footer > .right,
+.footer > .left {
+  display: flex;
+  gap: 8px;
+}
+

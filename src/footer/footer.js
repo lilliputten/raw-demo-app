@@ -1,26 +1,42 @@
 import { Button } from '../components/Button/Button.js';
-import { Switch } from '../components/Switch/Switch.js';
 
-export function initFooter(params = {}) {
-  const { onVideoToggle, onVrToggle } = params;
-  const footerNode = document.querySelector('#footer');
+let footerNode, endButton, vrButton, audioButton, videoButton;
 
-  let hasStarted = false;
-  const endButton = new Button(footerNode.querySelector('#endButton'));
-  endButton.onClick((ev) => {
-    console.log('onClick endButton', { ev });
-    hasStarted = !hasStarted;
-    endButton.setText(hasStarted ? 'End' : 'Start');
-  });
+export function initFooter() {
+  footerNode = document.querySelector('#footer');
+  endButton = new Button(footerNode.querySelector('#endButton'));
+  vrButton = new Button(footerNode.querySelector('#vrButton'));
+  audioButton = new Button(footerNode.querySelector('#audioButton'));
+  videoButton = new Button(footerNode.querySelector('#videoButton'));
+}
 
-  const vrSwitch = new Switch(footerNode.querySelector('#vrSwitch'));
-  vrSwitch.onToggle(onVrToggle);
+export function startFooter(params = {}) {
+  const { onVideoClick, onVrClick } = params;
 
-  const audioSwitch = new Switch(footerNode.querySelector('#audioSwitch'));
-  audioSwitch.onToggle((checked) => {
-    console.log('onClick audioSwitch', { checked });
-  });
+  if (endButton) {
+    endButton.enable();
+    let hasStarted = false;
+    endButton.onClick(() => {
+      hasStarted = !hasStarted;
+      endButton.setText(hasStarted ? 'End' : 'Start');
+    });
+  }
 
-  const videoSwitch = new Switch(footerNode.querySelector('#videoSwitch'));
-  videoSwitch.onToggle(onVideoToggle);
+  if (vrButton) {
+    vrButton.enable();
+    vrButton.onClick(onVrClick);
+  }
+
+  if (audioButton) {
+    // audioButton.enable();
+    audioButton.onClick(() => {
+      console.log('onClick audioButton');
+      debugger;
+    });
+  }
+
+  if (videoButton) {
+    videoButton.enable();
+    videoButton.onClick(onVideoClick);
+  }
 }

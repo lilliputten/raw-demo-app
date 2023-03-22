@@ -1,13 +1,6 @@
 
-.previewImage() {
-  background-image: url('./images/demo/gallery-uffizi.jpg');
-  background-size: cover;
-  background-position: center;
-}
-
 .videoView {
   background-color: #222;
-  // .previewImage(); // DEBUG
   position: absolute;
   overflow: hidden;
   top: 16px;
@@ -19,10 +12,10 @@
   box-shadow: 2px 2px 4px rgba(0,0,0,0.7);
   display: flex;
   transition: opacity 500ms;
-  &:not(.visible) {
-    opacity: 0;
-    pointer-events: none;
-  }
+}
+.videoView:not(.visible) {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .videoViewMedia {

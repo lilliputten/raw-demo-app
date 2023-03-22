@@ -33,12 +33,13 @@ export function showNotify(mode, text) {
   const node = document.createElement('div');
   node.classList.add('notify');
   node.classList.add('notify_' + mode);
-  // Add icon...
-  const nodeIcon = document.createElement('div');
-  nodeIcon.classList.add('icon');
-  nodeIcon.classList.add('fa');
-  nodeIcon.classList.add(icons[mode]);
-  node.appendChild(nodeIcon);
+  /* // Add icon...
+   * const nodeIcon = document.createElement('div');
+   * nodeIcon.classList.add('icon');
+   * nodeIcon.classList.add('fa');
+   * nodeIcon.classList.add(icons[mode]);
+   * node.appendChild(nodeIcon);
+   */
   // Add text...
   const nodeText = document.createElement('div');
   nodeText.classList.add('text');

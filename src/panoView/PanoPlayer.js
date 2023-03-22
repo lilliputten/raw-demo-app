@@ -3,18 +3,6 @@
  *  @changed 2023.03.07, 14:39
  */
 
-/*
- * import { io, Socket } from 'socket.io-client';
- * import { TCasterViewMode } from '@/core/types';
- * interface TParams {
- *   uniquePanoId: string;
- *   panoSkinUrl: string;
- *   viewMode: TCasterViewMode;
- *   socketsUrl: string;
- *   socketsPath: string;
- * }
- */
-
 const useSockets = true;
 
 export class PanoPlayer {
@@ -58,10 +46,6 @@ export class PanoPlayer {
         this.socket = io(socketsUrl, {
           path: socketsPath,
         });
-        /* console.log('[this.started]: startSockets', {
-         *   socket: this.socket,
-         * });
-         */
       }
     }
     return true;

@@ -1,29 +1,39 @@
 export class Button {
   node;
-  onClickHandlers = [];
+  clickHandlers = [];
   constructor(node) {
     this.node = node;
-    this._onClickHandler = this.onClickHandler.bind(this);
+    this._internalClickHandler = this.internalClickHandler.bind(this);
     if (node) {
-      node.addEventListener('click', this._onClickHandler);
+      node.addEventListener('click', this._internalClickHandler);
     }
+  }
+  destroy() {
+    if (this.node) {
+      this.node.removeEventListener('click', this._internalClickHandler);
+    }
+  }
+  internalClickHandler(ev) {
+    this.clickHandlers.forEach((cb) => cb(ev));
+  }
+  enable() {
+    this.node.removeAttribute('disabled');
+    return this;
+  }
+  disable() {
+    this.node.setAttribute('disabled', true);
+    return this;
   }
   setText(text) {
     if (this.node) {
       this.node.innerHTML = text;
     }
-  }
-  destroy() {
-    if (this.node) {
-      this.node.removeEventListener('click', this._onClickHandler);
-    }
-  }
-  onClickHandler(ev) {
-    this.onClickHandlers.forEach((cb) => cb(ev));
+    return this;
   }
   onClick(cb) {
     if (cb) {
-      this.onClickHandlers.push(cb);
+      this.clickHandlers.push(cb);
     }
+    return this;
   }
 }

@@ -1,8 +1,8 @@
 // Generic parameters...
 
-export const isDev = window.isDev;
-export const isGuide = window.isGuide;
-export const shareScreen = window.isGuide; // Use 'share screen' instead 'webcam' video casting mode (DEBUG?)
+export const isDev = window.location.host.startsWith('localhost');
+export const isGuide = window.location.search.includes('viewMode=guide');
+export const shareScreen = window.location.search.includes('share=screen');
 
 // Panorams...
 

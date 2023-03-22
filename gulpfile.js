@@ -9,15 +9,18 @@ var gutil = require('gulp-util');
 function bundleMediasoup() {
   // set up the browserify instance on a task basis
   var b = browserify({ entries: './mediasoup-bundle-entry.js', debug: true });
-  return b.bundle()
-  .pipe(source('mediasoup.js'))
-  .pipe(buffer())
-  .pipe(sourcemaps.init({ loadMaps: true }))
-    // Add transformation tasks to the pipeline here.
-    .pipe(uglify({ compress: { drop_debugger: false } }))
-    .on('error', gutil.log)
-  .pipe(sourcemaps.write('./'))
-  .pipe(gulp.dest('./mediasoup-bundle/'));
+  return (
+    b
+      .bundle()
+      .pipe(source('mediasoup.js'))
+      .pipe(buffer())
+      .pipe(sourcemaps.init({ loadMaps: true }))
+      // Add transformation tasks to the pipeline here.
+      .pipe(uglify({ compress: { drop_debugger: false } }))
+      .on('error', gutil.log)
+      .pipe(sourcemaps.write('./'))
+      .pipe(gulp.dest('./assets/mediasoup-bundle/'))
+  );
 }
 
 gulp.task('bundleMediasoup', bundleMediasoup);
