@@ -6,12 +6,14 @@ const timeoutDelay = 3000;
 
 // Modes: info, error, warn, success
 
-const icons = {
-  success: 'fa-check',
-  error: 'fa-warning',
-  warn: 'fa-bell',
-  info: 'fa-info',
-};
+/* // UNUSED: Icon shapes...
+ * const icons = {
+ *   success: 'fa-check',
+ *   error: 'fa-warning',
+ *   warn: 'fa-bell',
+ *   info: 'fa-info',
+ * };
+ */
 
 function init() {
   if (!inited) {

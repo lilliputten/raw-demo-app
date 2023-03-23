@@ -2,10 +2,10 @@
 /**
  * @module MicroEvents.test
  * @since 2023.03.23, 13:20
- * @changed 2023.03.23, 13:20
+ * @changed 2023.03.23, 20:21
  */
 
-import MicroEvents from './MicroEvents';
+import { MicroEvents } from './MicroEvents';
 
 describe('MicroEvents', () => {
   describe('Constructor', () => {

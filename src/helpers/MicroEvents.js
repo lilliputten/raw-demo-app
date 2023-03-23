@@ -2,11 +2,10 @@
  *  @class MicroEvents
  *  @desc Minimal events manager engine
  *  @since 2023.03.23, 13:20
- *  @changed 2023.03.23, 13:20
- *  TODO 2020.12.21, 18:05 -- Move to `webUiCore.utils`?
+ *  @changed 2023.03.23, 20:21
  */
 
-export default class MicroEvents /** @lends MicroEvents.prototype */ {
+export class MicroEvents /** @lends MicroEvents.prototype */ {
   /** Event handlers storage
    * @type {Object}
    */

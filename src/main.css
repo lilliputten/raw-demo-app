@@ -1,3 +1,9 @@
+:root {
+  --error-color: #b00;
+  --warn-color: #960;
+  --success-color: #181;
+}
+
 html,
 body,
 body > #root {

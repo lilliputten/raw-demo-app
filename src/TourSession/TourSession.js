@@ -1,10 +1,11 @@
-import { commonAppId, commonSocketsUrl } from '../config.js';
+import { commonSocketAppId, commonSocketUrl } from '../config.js';
 import { showError, showInfo, showSuccess } from '../notify/notify.js';
 
 export class TourSession {
   // Permanent parameters...
   events = undefined;
   // Session-time parameters...
+  inited = false;
   started = false;
   socket = undefined;
 
@@ -12,21 +13,31 @@ export class TourSession {
     this.events = events;
   }
 
+  init() {
+    this.inited = true;
+    return true;
+  }
+
   isStarted() {
     return this.started;
   }
 
+  isInited() {
+    return this.inited;
+  }
+
   startSocket() {
     return new Promise((resolve, reject) => {
-      console.log('[TourSession:start]: Starting socket', {
-        commonSocketsUrl,
-        commonAppId,
-      });
+      /* console.log('[TourSession:start]: Starting socket', {
+       *   commonSocketUrl,
+       *   commonSocketAppId,
+       * });
+       */
       const opts = {
-        path: commonAppId,
+        path: commonSocketAppId,
         transports: ['websocket'],
       };
-      this.socket = window.io(commonSocketsUrl, opts);
+      this.socket = window.io(commonSocketUrl, opts);
       this.socket.on('connect', resolve);
       this.socket.on('connect_error', reject);
       this.socket.on('connect_failed', reject);
@@ -59,8 +70,8 @@ export class TourSession {
       .catch((error) => {
         // eslint-disable-next-line no-console
         console.error('[TourSession:start]: error', error, {
-          commonSocketsUrl,
-          commonAppId,
+          commonSocketUrl,
+          commonSocketAppId,
         });
         debugger; // eslint-disable-line no-debugger
         error = new Error('Tour session start failed: ' + error.message);

@@ -12,6 +12,7 @@ env:
   # browser: true
   # jest: true
   node: true
+  commonjs: true
   # jest/globals: true
 
 rules:

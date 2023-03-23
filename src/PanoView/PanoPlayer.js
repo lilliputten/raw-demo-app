@@ -5,7 +5,7 @@
 
 import { showError } from '../notify/notify.js';
 
-const useSockets = true;
+// const useSockets = true;
 
 export class PanoPlayer {
   // Parameters...
@@ -50,40 +50,13 @@ export class PanoPlayer {
 
   stopPlayer() {
     if (this.started) {
-      // Destroy: this.pano, this.skin
+      // Destroy pano & skin...
       this.pano.removePanorama();
       this.skin.removeSkinHotspots();
       this.pano = undefined;
       this.skin = undefined;
       return true;
     }
-  }
-
-  startSockets() {
-    /* // UNUSED: Using external sockets (from params)
-     * if (useSockets) {
-     *   debugger;
-     *   const { panoSocketsUrl, panoSocketsPath } = this.params;
-     *   const io = window.io; // Use local io (see `CasterViewScripts`)
-     *   if (typeof io === 'function') {
-     *     // @see https://socket.io/docs/v4/client-initialization/
-     *     this.socket = io(panoSocketsUrl, {
-     *       path: panoSocketsPath,
-     *     });
-     *   }
-     * }
-     */
-    return true;
-  }
-
-  stopSockets() {
-    /* // UNUSED: Using external sockets
-     * if (useSockets && this.socket) {
-     *   this.socket.destroy();
-     *   this.socket = undefined;
-     * }
-     */
-    return true;
   }
 
   startGuideEvents() {
@@ -161,13 +134,6 @@ export class PanoPlayer {
         debugger; // eslint-disable-line no-debugger
         showError(error);
         reject(error);
-      } else if (!this.startSockets()) {
-        const error = new Error('Sockets start failed');
-        // eslint-disable-next-line no-console
-        console.error('[PanoView:start]: error', error);
-        debugger; // eslint-disable-line no-debugger
-        showError(error);
-        reject(error);
       } else if (!this.startEvents()) {
         const error = new Error('Events start failed');
         // eslint-disable-next-line no-console
@@ -186,7 +152,6 @@ export class PanoPlayer {
   stop() {
     if (this.started) {
       this.stopEvents();
-      this.stopSockets();
       this.stopPlayer();
       this.started = false;
     }

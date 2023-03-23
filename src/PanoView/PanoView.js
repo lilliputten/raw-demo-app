@@ -10,6 +10,7 @@ export class PanoView {
   socket = undefined;
   // Session-time parameters...
   skinLoaded = false;
+  inited = false;
   started = false;
   panoPlayer = undefined;
 
@@ -21,11 +22,19 @@ export class PanoView {
     });
     this.events.on('tourSessionStopped', () => {
       // Close connection...
-      this.stop();
+      if (this.started) {
+        this.stop();
+      }
       this.socket = undefined;
     });
+  }
+
+  init() {
     // Load panorama skin...
-    this.loadSkin();
+    return this.loadSkin().then(() => {
+      this.inited = true;
+      return true;
+    });
   }
 
   loadSkin() {
@@ -36,7 +45,6 @@ export class PanoView {
         // Check skin loading result?
         .then(() => {
           showSuccess('Panorama skin successfully loaded');
-          this.skinLoaded;
         })
         .catch((errObj) => {
           const { type, message, srcElement } = errObj;
@@ -59,6 +67,10 @@ export class PanoView {
 
   isStarted() {
     return this.started;
+  }
+
+  isInited() {
+    return this.inited;
   }
 
   /** @return promise */
@@ -92,7 +104,6 @@ export class PanoView {
       .then(() => {
         this.events.emit('panoStarted');
         this.started = true;
-        showSuccess('Panorama started');
         showSuccess('Started panorama in "' + viewMode + '" mode');
       })
       .catch((err) => {

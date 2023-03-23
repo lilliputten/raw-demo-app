@@ -1,6 +1,5 @@
 .notifyRoot {
   position: absolute;
-  /* bottom: 60px; */
   left: 0;
   right: 0;
   top: 0;
@@ -15,6 +14,8 @@
   cursor: pointer;
   overflow: hidden;
   background-color: rgba(0,0,0,0.85);
+  border: 1px solid rgba(255,255,255,0.05);
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.25);
   padding: 8px;
   display: flex;
   flex-direction: row;
@@ -23,7 +24,10 @@
   position: relative;
   gap: 8px;
 }
-@media (min-width: 400px) {
+@media (min-width: 440px) {
+  .notifyRoot {
+    top: 20px
+  }
   .notify {
     margin: 2px auto;
     border-radius: 6px;
@@ -31,15 +35,13 @@
     width: 100%;
   }
 }
-@media (min-width: 600px) {
+@media (min-width: 640px) {
   .notify {
     max-width: 600px;
   }
 }
-.notify_success  > .text { color: #3c3; }
-.notify_error > .text { color: #f00; }
-.notify_warn > .text { color: #f90; }
-.notify > .text {
-  flex: 1;
-}
+.notify  > .text { color: #999; flex: 1; }
+.notify_success  > .text { color: var(--success-color); }
+.notify_error > .text { color: var(--error-color); }
+.notify_warn > .text { color: var(--warn-color); }
 
