@@ -35,6 +35,9 @@ export function showNotify(mode, text) {
   const node = document.createElement('div');
   node.classList.add('notify');
   node.classList.add('notify_' + mode);
+  setTimeout(() => {
+    node.classList.add('active');
+  }, 0);
   /* // Add icon...
    * const nodeIcon = document.createElement('div');
    * nodeIcon.classList.add('icon');
@@ -50,7 +53,10 @@ export function showNotify(mode, text) {
   notifyRoot.appendChild(node);
   // Remove node after delay...
   const handler = setTimeout(() => {
-    notifyRoot.removeChild(node);
+    node.classList.remove('active');
+    setTimeout(() => {
+      notifyRoot.removeChild(node);
+    }, 250);
   }, timeoutDelay);
   // Click handler...
   node.addEventListener('click', () => {

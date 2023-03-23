@@ -23,6 +23,14 @@
   align-items: center;
   position: relative;
   gap: 8px;
+  /* Animate creating & destroying... */
+  transition: all 250ms;
+  top: -100px;
+  opacity: 0;
+}
+.notify.active {
+  top: 0;
+  opacity: 1;
 }
 @media (min-width: 440px) {
   .notifyRoot {
