@@ -4,7 +4,7 @@
   right: 0;
   top: 0;
   display: flex;
-  flex-direction: column; /* -reverse; */
+  flex-direction: column;
   justify-content: stretch;
   align-items: stretch;
   z-index: 999;
@@ -24,7 +24,7 @@
   position: relative;
   gap: 8px;
   /* Animate creating & destroying... */
-  transition: all 250ms;
+  transition: all var(--transition-delay);
   top: -100px;
   opacity: 0;
 }

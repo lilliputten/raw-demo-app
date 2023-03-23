@@ -2,6 +2,7 @@
   --error-color: #b00;
   --warn-color: #960;
   --success-color: #181;
+  --transition-delay: 250ms;
 }
 
 html,
