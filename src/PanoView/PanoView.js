@@ -9,6 +9,7 @@ export class PanoView {
   panoNode = undefined;
   socket = undefined;
   // Session-time parameters...
+  skinLoaded = false;
   started = false;
   panoPlayer = undefined;
 
@@ -24,8 +25,36 @@ export class PanoView {
       this.socket = undefined;
     });
     // Load panorama skin...
-    addScript(panoSkinUrl + 'skin.js');
-    // TODO: Check skin loading result?
+    this.loadSkin();
+  }
+
+  loadSkin() {
+    // NOTE: Should instantiate `window.pano2vrSkin`
+    showInfo('Loading panorama skin...');
+    return (
+      addScript(panoSkinUrl + 'skin.js')
+        // Check skin loading result?
+        .then(() => {
+          showSuccess('Panorama skin successfully loaded');
+          this.skinLoaded;
+        })
+        .catch((errObj) => {
+          const { type, message, srcElement } = errObj;
+          const { src } = srcElement || {};
+          const errText = ['Panorama skin loading failed', message].filter(Boolean).join(': ');
+          const error = new Error(errText);
+          // eslint-disable-next-line no-console
+          console.error('[PanoView:start]: error', error, {
+            errObj,
+            src,
+            type,
+            srcElement,
+          });
+          debugger; // eslint-disable-line no-debugger
+          showError(error);
+          throw error;
+        })
+    );
   }
 
   isStarted() {
@@ -66,8 +95,13 @@ export class PanoView {
         showSuccess('Panorama started');
         showSuccess('Started panorama in "' + viewMode + '" mode');
       })
-      .catch((error) => {
-        showError('Panorama start error: ' + error.message);
+      .catch((err) => {
+        const error = new Error('Panorama start failed: ' + err.message);
+        // eslint-disable-next-line no-console
+        console.error('[PanoView:start]: error', error, { err });
+        debugger; // eslint-disable-line no-debugger
+        showError(error);
+        throw error;
       });
   }
 

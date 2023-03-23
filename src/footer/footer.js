@@ -33,27 +33,38 @@ export function startFooter(params = {}) {
 
   onStart && startButton.setEnabled(true);
 
-  events.on('tourSessionStarted', () => {
-    startButton.setEnabled(false);
-    endButton.setEnabled(!!onStop);
+  let sessionStarted = false;
+  let panoStarted = false;
 
-    vrStartButton.setEnabled(!!onVrStart);
-    audioStartButton.setEnabled(!!onAudioStart);
-    videoStartButton.setEnabled(!!onVideoStart);
-    vrStopButton.setEnabled(!!onVrStop);
-    audioStopButton.setEnabled(!!onAudioStop);
-    videoStopButton.setEnabled(!!onVideoStop);
+  function updateButtons() {
+    startButton.setEnabled(!sessionStarted && !!onStart);
+    endButton.setEnabled(sessionStarted && !!onStop);
+
+    vrStartButton.setEnabled(sessionStarted && !panoStarted && !!onVrStart);
+    vrStopButton.setEnabled(sessionStarted && panoStarted && !!onVrStop);
+
+    audioStartButton.setEnabled(sessionStarted && !!onAudioStart);
+    audioStopButton.setEnabled(sessionStarted && !!onAudioStop);
+    videoStartButton.setEnabled(sessionStarted && !!onVideoStart);
+    videoStopButton.setEnabled(sessionStarted && !!onVideoStop);
+  }
+
+  events.on('tourSessionStarted', () => {
+    sessionStarted = true;
+    updateButtons();
   });
 
   events.on('tourSessionStopped', () => {
-    startButton.setEnabled(!!onStart);
-    endButton.setEnabled(false);
+    sessionStarted = false;
+    updateButtons();
+  });
 
-    vrStartButton.setEnabled(false);
-    audioStartButton.setEnabled(false);
-    videoStartButton.setEnabled(false);
-    vrStopButton.setEnabled(false);
-    audioStopButton.setEnabled(false);
-    videoStopButton.setEnabled(false);
+  events.on('panoStarted', () => {
+    panoStarted = true;
+    updateButtons();
+  });
+  events.on('panoStopped', () => {
+    panoStarted = false;
+    updateButtons();
   });
 }

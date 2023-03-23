@@ -28,9 +28,14 @@ export function getQuerySelector(node) {
   return node.querySelector.bind(node);
 }
 
+/** @return promise */
 export function addScript(url) {
-  // document.write('<script src="' + url + '"></script>');
-  var script = document.createElement('script');
-  script.setAttribute('src', url);
-  document.head.appendChild(script);
+  return new Promise((resolve, reject) => {
+    // document.write('<script src="' + url + '"></script>');
+    var script = document.createElement('script');
+    script.setAttribute('src', url);
+    script.addEventListener('load', resolve);
+    script.addEventListener('error', reject);
+    document.head.appendChild(script);
+  });
 }

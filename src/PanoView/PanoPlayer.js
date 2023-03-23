@@ -154,11 +154,31 @@ export class PanoPlayer {
 
   start() {
     return new Promise((resolve, reject) => {
-      if (this.startPlayer() && this.startSockets() && this.startEvents()) {
+      if (!this.startPlayer()) {
+        const error = new Error('Player start failed');
+        // eslint-disable-next-line no-console
+        console.error('[PanoView:start]: error', error);
+        debugger; // eslint-disable-line no-debugger
+        showError(error);
+        reject(error);
+      } else if (!this.startSockets()) {
+        const error = new Error('Sockets start failed');
+        // eslint-disable-next-line no-console
+        console.error('[PanoView:start]: error', error);
+        debugger; // eslint-disable-line no-debugger
+        showError(error);
+        reject(error);
+      } else if (!this.startEvents()) {
+        const error = new Error('Events start failed');
+        // eslint-disable-next-line no-console
+        console.error('[PanoView:start]: error', error);
+        debugger; // eslint-disable-line no-debugger
+        showError(error);
+        reject(error);
+      } else {
+        // Success
         this.started = true;
         resolve();
-      } else {
-        reject('Failed'); // TODO: Provide fail reason?
       }
     });
   }
