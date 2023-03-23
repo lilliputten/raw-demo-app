@@ -44,7 +44,7 @@
       "args": [
         "--verbose",
         // "withRouterProps"
-        "EdumeetWrapper.test"
+        "MicroEvents.test"
       ],
       "type": "node",
       "request": "launch",

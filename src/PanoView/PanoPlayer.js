@@ -3,6 +3,8 @@
  *  @changed 2023.03.07, 14:39
  */
 
+import { showError } from '../notify/notify.js';
+
 const useSockets = true;
 
 export class PanoPlayer {
@@ -13,12 +15,21 @@ export class PanoPlayer {
   // Instances...
   pano;
   skin;
-  socket;
+  // socket;
 
   // TODO: Add errors handler registration?
 
   constructor(params) {
     this.params = params;
+    // Test params?
+    if (!this.params.socket) {
+      const error = new Error('Socket has not specified for PanoPlayer');
+      // eslint-disable-next-line no-console
+      console.error('[PanoPlayer:constructor]: error', error);
+      debugger; // eslint-disable-line no-debugger
+      showError(error);
+      throw error;
+    }
   }
 
   hasStarted() {
@@ -49,35 +60,40 @@ export class PanoPlayer {
   }
 
   startSockets() {
-    if (useSockets) {
-      const { socketsUrl, socketsPath } = this.params;
-      const io = window.io; // Use local io (see `CasterViewScripts`)
-      if (typeof io === 'function') {
-        // @see https://socket.io/docs/v4/client-initialization/
-        this.socket = io(socketsUrl, {
-          path: socketsPath,
-        });
-      }
-    }
+    /* // UNUSED: Using external sockets (from params)
+     * if (useSockets) {
+     *   debugger;
+     *   const { panoSocketsUrl, panoSocketsPath } = this.params;
+     *   const io = window.io; // Use local io (see `CasterViewScripts`)
+     *   if (typeof io === 'function') {
+     *     // @see https://socket.io/docs/v4/client-initialization/
+     *     this.socket = io(panoSocketsUrl, {
+     *       path: panoSocketsPath,
+     *     });
+     *   }
+     * }
+     */
     return true;
   }
 
   stopSockets() {
-    if (useSockets && this.socket) {
-      this.socket.destroy();
-      this.socket = undefined;
-    }
+    /* // UNUSED: Using external sockets
+     * if (useSockets && this.socket) {
+     *   this.socket.destroy();
+     *   this.socket = undefined;
+     * }
+     */
     return true;
   }
 
   startGuideEvents() {
     this.pano.addListener('changenode', () => {
-      this.socket?.emit('msgGuideOpen', {
+      this.params.socket?.emit('msgGuideOpen', {
         nodeId: this.pano.getCurrentNode(),
       });
     });
     this.pano.addListener('positionchanged', () => {
-      this.socket?.emit('msgGuideMove', {
+      this.params.socket?.emit('msgGuideMove', {
         pan: this.pano.getPan(),
         fov: this.pano.getFov(),
         tilt: this.pano.getTilt(),
@@ -93,11 +109,11 @@ export class PanoPlayer {
   }
 
   startVisitorEvents() {
-    this.socket?.on('connect', () => {
-      this.socket?.emit('msgJoin', { visitId: this.socket?.id });
+    this.params.socket?.on('connect', () => {
+      this.params.socket?.emit('msgJoin', { visitId: this.params.socket?.id });
     });
 
-    this.socket?.on('msgInit', (msg) => {
+    this.params.socket?.on('msgInit', (msg) => {
       if (msg.nodeId) {
         this.pano.openNext('{' + msg.nodeId + '}');
         this.pano.setPan(msg.pan);
@@ -106,34 +122,34 @@ export class PanoPlayer {
       }
     });
 
-    this.socket?.on('msgMove', (msg) => {
+    this.params.socket?.on('msgMove', (msg) => {
       this.pano.setPan(msg.pan);
       this.pano.setFov(msg.fov);
       this.pano.setTilt(msg.tilt);
     });
 
-    this.socket?.on('msgOpen', (msg) => {
+    this.params.socket?.on('msgOpen', (msg) => {
       this.pano.openNext('{' + msg.nodeId + '}');
     });
     return true;
   }
 
   stopVisitorEvents() {
-    this.socket?.off('connect');
-    this.socket?.off('msgInit');
-    this.socket?.off('msgMove');
-    this.socket?.off('msgOpen');
+    this.params.socket?.off('connect');
+    this.params.socket?.off('msgInit');
+    this.params.socket?.off('msgMove');
+    this.params.socket?.off('msgOpen');
     return true;
   }
 
   startEvents() {
-    const { viewMode } = this.params;
-    return viewMode === 'guide' ? this.startGuideEvents() : this.startVisitorEvents();
+    const { isGuide } = this.params;
+    return isGuide ? this.startGuideEvents() : this.startVisitorEvents();
   }
 
   stopEvents() {
-    const { viewMode } = this.params;
-    return viewMode === 'guide' ? this.stopGuideEvents() : this.stopVisitorEvents();
+    const { isGuide } = this.params;
+    return isGuide ? this.stopGuideEvents() : this.stopVisitorEvents();
   }
 
   start() {
@@ -154,5 +170,9 @@ export class PanoPlayer {
       this.stopPlayer();
       this.started = false;
     }
+  }
+
+  destroy() {
+    this.stop();
   }
 }

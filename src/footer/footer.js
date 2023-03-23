@@ -1,4 +1,5 @@
 import { Button } from '../components/Button/Button.js';
+import { getQuerySelector } from '../helpers/dom.js';
 
 let footerNode;
 
@@ -8,8 +9,9 @@ export function initFooter() {
 
 export function startFooter(params = {}) {
   const {
+    events,
     onStart,
-    onEnd,
+    onStop,
     onVrStart,
     onAudioStart,
     onVideoStart,
@@ -18,43 +20,40 @@ export function startFooter(params = {}) {
     onVideoStop,
   } = params;
 
-  const startButton = new Button(footerNode.querySelector('#startButton'));
-  if (onStart) {
-    startButton.enable().onClick(onStart);
-  }
+  const footerQuery = getQuerySelector(footerNode);
 
-  const endButton = new Button(footerNode.querySelector('#endButton'));
-  if (onEnd) {
-    endButton.enable().onClick(onEnd);
-  }
+  const startButton = new Button(footerQuery('#startButton'), { onClick: onStart });
+  const endButton = new Button(footerQuery('#endButton'), { onClick: onStop });
+  const vrStartButton = new Button(footerQuery('#vrStartButton'), { onClick: onVrStart });
+  const audioStartButton = new Button(footerQuery('#audioStartButton'), { onClick: onAudioStart });
+  const videoStartButton = new Button(footerQuery('#videoStartButton'), { onClick: onVideoStart });
+  const vrStopButton = new Button(footerQuery('#vrStopButton'), { onClick: onVrStop });
+  const audioStopButton = new Button(footerQuery('#audioStopButton'), { onClick: onAudioStop });
+  const videoStopButton = new Button(footerQuery('#videoStopButton'), { onClick: onVideoStop });
 
-  const vrStartButton = new Button(footerNode.querySelector('#vrStartButton'));
-  if (onVrStart) {
-    vrStartButton.enable().onClick(onVrStart);
-  }
+  onStart && startButton.setEnabled(true);
 
-  const audioStartButton = new Button(footerNode.querySelector('#audioStartButton'));
-  if (onAudioStart) {
-    audioStartButton.enable().onClick(onAudioStart);
-  }
+  events.on('tourSessionStarted', () => {
+    startButton.setEnabled(false);
+    endButton.setEnabled(!!onStop);
 
-  const videoStartButton = new Button(footerNode.querySelector('#videoStartButton'));
-  if (onVideoStart) {
-    videoStartButton.enable().onClick(onVideoStart);
-  }
+    vrStartButton.setEnabled(!!onVrStart);
+    audioStartButton.setEnabled(!!onAudioStart);
+    videoStartButton.setEnabled(!!onVideoStart);
+    vrStopButton.setEnabled(!!onVrStop);
+    audioStopButton.setEnabled(!!onAudioStop);
+    videoStopButton.setEnabled(!!onVideoStop);
+  });
 
-  const vrStopButton = new Button(footerNode.querySelector('#vrStopButton'));
-  if (onVrStop) {
-    vrStopButton.enable().onClick(onVrStop);
-  }
+  events.on('tourSessionStopped', () => {
+    startButton.setEnabled(!!onStart);
+    endButton.setEnabled(false);
 
-  const audioStopButton = new Button(footerNode.querySelector('#audioStopButton'));
-  if (onAudioStop) {
-    audioStopButton.enable().onClick(onAudioStop);
-  }
-
-  const videoStopButton = new Button(footerNode.querySelector('#videoStopButton'));
-  if (onVideoStop) {
-    videoStopButton.enable().onClick(onVideoStop);
-  }
+    vrStartButton.setEnabled(false);
+    audioStartButton.setEnabled(false);
+    videoStartButton.setEnabled(false);
+    vrStopButton.setEnabled(false);
+    audioStopButton.setEnabled(false);
+    videoStopButton.setEnabled(false);
+  });
 }
