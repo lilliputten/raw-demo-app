@@ -5,6 +5,7 @@ import { initFooter, startFooter } from './footer/footer.js';
 import { showError, showSuccess } from './notify/notify.js';
 import { MicroEvents } from './helpers/MicroEvents.js';
 import { TourSession } from './TourSession/TourSession.js';
+import { MediaClient } from './MediaClient/MediaClient.js';
 
 export function main() {
   try {
@@ -16,7 +17,8 @@ export function main() {
     initFooter();
     // Start...
     const tourSession = new TourSession({ events });
-    Promise.all([panoView.init(), tourSession.init()])
+    const mediaClient = new MediaClient({ events });
+    Promise.all([panoView.init(), tourSession.init(), mediaClient.init()])
       .then(() => {
         startFooter({
           onVideoStart: startVideo,

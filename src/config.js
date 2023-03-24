@@ -35,3 +35,7 @@ export const commonSocketUrl = useLocalDevServer
   ? 'http://localhost:8082/' // Local socket.io server
   : prodServerUrl; // Production sockets address (`https://360caster.com:8082/`)
 export const commonSocketAppId = isDev ? '/appId002' : '/appId003';
+
+// Media client socket...
+
+export const mediaClientUrl = prodServerUrl;
