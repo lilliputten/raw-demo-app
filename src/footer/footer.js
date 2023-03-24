@@ -35,6 +35,8 @@ export function startFooter(params = {}) {
 
   let sessionStarted = false;
   let panoStarted = false;
+  let videoStarted = false;
+  let audioStarted = false;
 
   function updateButtons() {
     startButton.setEnabled(!sessionStarted && !!onStart);
@@ -43,10 +45,11 @@ export function startFooter(params = {}) {
     vrStartButton.setEnabled(sessionStarted && !panoStarted && !!onVrStart);
     vrStopButton.setEnabled(sessionStarted && panoStarted && !!onVrStop);
 
-    audioStartButton.setEnabled(sessionStarted && !!onAudioStart);
-    audioStopButton.setEnabled(sessionStarted && !!onAudioStop);
-    videoStartButton.setEnabled(sessionStarted && !!onVideoStart);
-    videoStopButton.setEnabled(sessionStarted && !!onVideoStop);
+    audioStartButton.setEnabled(sessionStarted && !audioStarted && !!onAudioStart);
+    audioStopButton.setEnabled(sessionStarted && audioStarted && !!onAudioStop);
+
+    videoStartButton.setEnabled(sessionStarted && !videoStarted && !!onVideoStart);
+    videoStopButton.setEnabled(sessionStarted && videoStarted && !!onVideoStop);
   }
 
   events.on('tourSessionStarted', () => {
@@ -65,6 +68,24 @@ export function startFooter(params = {}) {
   });
   events.on('panoStopped', () => {
     panoStarted = false;
+    updateButtons();
+  });
+
+  events.on('MediaClient:audioStarted', () => {
+    audioStarted = true;
+    updateButtons();
+  });
+  events.on('MediaClient:audioStopped', () => {
+    audioStarted = false;
+    updateButtons();
+  });
+
+  events.on('MediaClient:videoStarted', () => {
+    videoStarted = true;
+    updateButtons();
+  });
+  events.on('MediaClient:videoStopped', () => {
+    videoStarted = false;
     updateButtons();
   });
 }

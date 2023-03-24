@@ -1,10 +1,15 @@
-import {mediaClientUrl} from '../config.js';
-import { querySelector } from '../helpers/dom.js';
+/* eslint-disable no-console */
+import { mediaClientUrl, mediaClientAppId, shareScreen, isGuide } from '../config.js';
+import { sleep } from '../helpers/async.js';
+import { querySelector, toggleClassName } from '../helpers/dom.js';
 import { uuidv4 } from '../helpers/strings.js';
 import { showError, showInfo } from '../notify/notify.js';
-import { removeVideoAudio, sortPeers } from './mediaHelpers.js';
+import { camEncodings, removeVideoAudio, screenshareEncodings, setMediaSoupDebugLevel } from './mediaHelpers.js';
 
-const appPath = '/appId005/';
+// Enable mediasoup logging
+const mediaSoupDebugLevel = '*';
+
+const pollDelay = 10000;
 
 export class MediaClient {
   // Permanent parameters...
@@ -13,6 +18,9 @@ export class MediaClient {
   socket = undefined; // TODO!
   myPeerId = undefined;
   device = undefined;
+
+  videoStarted = false;
+  audioStarted = false;
 
   // Media parameters...
   camAudioProducer = undefined;
@@ -48,6 +56,7 @@ export class MediaClient {
       this.leaveRoom();
       this.socket = undefined;
     });
+    setMediaSoupDebugLevel(mediaSoupDebugLevel);
   }
 
   onUnload() {
@@ -57,7 +66,7 @@ export class MediaClient {
   init() {
     return new Promise((resolve, reject) => {
       this.myPeerId = uuidv4();
-      showInfo('Initializing media client with peerId ' + this.myPeerId);
+      showInfo('Initializing media client...'); // ' with peerId ' + this.myPeerId);
       try {
         this.device = new window.mediasoup.Device();
         // TODO: Check device?
@@ -111,9 +120,11 @@ export class MediaClient {
       const { routerRtpCapabilities } = await this.sig('join-as-new-peer');
       if (!this.device.loaded && routerRtpCapabilities) {
         await this.device.load({ routerRtpCapabilities });
+        console.log('[MediaClient:joinRoom]: success', {
+          routerRtpCapabilities,
+        });
         this.joined = true;
         // $('#leave-room').style.display = 'initial';
-        // TODO: Sent event
         this.events.emit('MediaClient:roomJoined');
       }
     } catch (err) {
@@ -130,37 +141,14 @@ export class MediaClient {
       const { error: err } = await this.pollAndUpdate();
       if (err) {
         clearInterval(this.pollingInterval);
-        const error = new Error('Poll failed: ' + err.message);
+        const error = new Error('Poll failed: ' + err.message || err);
         // eslint-disable-next-line no-console
         console.error('[MediaClient:joinRoom]: poll error', error);
         debugger; // eslint-disable-line no-debugger
         showError(error);
         throw error;
       }
-    }, 1000);
-  }
-
-  async stopTransports() {
-    // closing the transports closes all producers and consumers. we
-    // don't need to do anything beyond closing the transports, except
-    // to set all our local variables to their initial states
-    try {
-      if (this.recvTransport) {
-        await this.recvTransport.close();
-        this.recvTransport = undefined;
-      }
-      if (this.sendTransport) {
-        await this.sendTransport.close();
-        this.sendTransport = undefined;
-      }
-    } catch (err) {
-      const error = new Error('Transports stop failed: ' + err.message);
-      // eslint-disable-next-line no-console
-      console.error('[MediaClient:leaveRoom]: error', error);
-      debugger; // eslint-disable-line no-debugger
-      showError(error);
-      throw error;
-    }
+    }, pollDelay);
   }
 
   async leaveRoom() {
@@ -197,6 +185,8 @@ export class MediaClient {
 
     this.joined = false;
 
+    this.events.emit('MediaClient:roomLeft');
+
     /* // TODO?
      * // hacktastically restore ui to initial state
      * $('#join-control').style.display = 'initial';
@@ -213,8 +203,36 @@ export class MediaClient {
      */
   }
 
+  async stopTransports() {
+    // closing the transports closes all producers and consumers. we
+    // don't need to do anything beyond closing the transports, except
+    // to set all our local variables to their initial states
+    try {
+      if (this.recvTransport) {
+        await this.recvTransport.close();
+        this.recvTransport = undefined;
+      }
+      if (this.sendTransport) {
+        await this.sendTransport.close();
+        this.sendTransport = undefined;
+      }
+    } catch (err) {
+      const error = new Error('Transports stop failed: ' + err.message);
+      // eslint-disable-next-line no-console
+      console.error('[MediaClient:leaveRoom]: error', error);
+      debugger; // eslint-disable-line no-debugger
+      showError(error);
+      throw error;
+    }
+  }
+
   async pollAndUpdate() {
     const { peers, activeSpeaker, error } = await this.sig('sync');
+    console.log('[MediaClient:pollAndUpdate]', {
+      peers,
+      activeSpeaker,
+      error,
+    });
     if (error) {
       return { error };
     }
@@ -265,6 +283,7 @@ export class MediaClient {
     });
 
     this.lastPollSyncData = peers;
+
     return {}; // return an empty object if there isn't an error
   }
 
@@ -297,7 +316,7 @@ export class MediaClient {
         'Access-Control-Allow-Origin': '*',
       };
       const body = JSON.stringify({ ...data, peerId: this.myPeerId });
-      const url = mediaClientUrl + appPath + endpoint;
+      const url = mediaClientUrl + mediaClientAppId + endpoint;
       const fetchParams = {
         method: 'POST',
         body,
@@ -313,7 +332,6 @@ export class MediaClient {
         data,
         beacon,
       });
-      debugger;
       if (beacon) {
         navigator.sendBeacon(url, body);
         return null;
@@ -329,7 +347,6 @@ export class MediaClient {
         data,
         beacon,
       });
-      debugger;
       return await response.json();
     } catch (err) {
       const error = new Error('Remote request (sig) failed: ' + err.message);
@@ -340,5 +357,336 @@ export class MediaClient {
       throw error;
       // return { error };
     }
+  }
+
+  getCamPausedState() {
+    // return !$('#local-cam-checkbox').checked;
+    return false;
+  }
+
+  getMicPausedState() {
+    // return !$('#local-mic-checkbox').checked;
+    return false;
+  }
+
+  // utility function to create a transport and hook up signaling logic
+  // appropriate to the transport's direction
+  async createTransport(direction) {
+    showInfo(`Create ${direction} transport`);
+
+    // ask the server to create a server-side transport object and send
+    // us back the info we need to create a client-side transport
+    const { transportOptions } = await this.sig('create-transport', { direction });
+    console.log('[MediaClient:createTransport]: Transport options', { transportOptions });
+
+    let transport;
+    if (direction === 'recv') {
+      transport = await this.device.createRecvTransport(transportOptions);
+    } else if (direction === 'send') {
+      transport = await this.device.createSendTransport(transportOptions);
+    } else {
+      // throw new Error(`bad transport 'direction': ${direction}`);
+      const error = new Error(`bad transport 'direction': ${direction}`);
+      // eslint-disable-next-line no-console
+      console.error('[MediaClient:createTransport]: error', error);
+      debugger; // eslint-disable-line no-debugger
+      showError(error);
+      throw error;
+    }
+
+    // mediasoup-client will emit a connect event when media needs to
+    // start flowing for the first time. send dtlsParameters to the
+    // server, then call callback() on success or errback() on failure.
+    transport.on('connect', async ({ dtlsParameters }, callback, errback) => {
+      console.log('[MediaClient:createTransport:connect] transport connect event', {
+        direction,
+      });
+      const { error: err } = await this.sig('connect-transport', {
+        transportId: transportOptions.id,
+        dtlsParameters,
+      });
+      if (err) {
+        // err('error connecting transport', direction, error);
+        const error = new Error('Error connecting transport: ' + err.message || err);
+        // eslint-disable-next-line no-console
+        console.error('[MediaClient:createTransport:connect]: error', error);
+        debugger; // eslint-disable-line no-debugger
+        showError(error);
+        errback();
+        return;
+      }
+      callback();
+    });
+
+    if (direction === 'send') {
+      // sending transports will emit a produce event when a new track
+      // needs to be set up to start sending. the producer's appData is
+      // passed as a parameter
+      transport.on('produce', async ({ kind, rtpParameters, appData }, callback, errback) => {
+        const { mediaTag } = appData;
+        console.log('[MediaClient:createTransport:produce] transport produce event', {
+          mediaTag,
+        });
+        // we may want to start out paused (if the checkboxes in the ui
+        // aren't checked, for each media type. not very clean code, here
+        // but, you know, this isn't a real application.)
+        let paused = false;
+        if (mediaTag === 'cam-video') {
+          paused = this.getCamPausedState();
+        } else if (mediaTag === 'cam-audio') {
+          paused = this.getMicPausedState();
+        }
+        // tell the server what it needs to know from us in order to set
+        // up a server-side producer object, and get back a
+        // producer.id. call callback() on success or errback() on
+        // failure.
+        const { error: err, id } = await this.sig('send-track', {
+          transportId: transportOptions.id,
+          kind,
+          rtpParameters,
+          paused,
+          appData,
+        });
+        if (err) {
+          const error = new Error('Error setting up server-side producer: ' + err.message || err);
+          // eslint-disable-next-line no-console
+          console.error('[MediaClient:createTransport:produce]: error', error);
+          debugger; // eslint-disable-line no-debugger
+          showError(error);
+          errback();
+          return;
+        }
+        callback({ id });
+      });
+    }
+
+    // for this simple demo, any time a transport transitions to closed,
+    // failed, or disconnected, leave the room and reset
+    transport.on('connectionstatechange', async (state) => {
+      console.log('[MediaClient:createTransport:produce] connectionstatechange', {
+        id: transport.id,
+        state,
+      });
+      // for this simple sample code, assume that transports being
+      // closed is an error (we never close these transports except when
+      // we leave the room)
+      if (state === 'closed' || state === 'failed' || state === 'disconnected') {
+        console.log('[MediaClient:createTransport:produce] transport closed');
+        this.leaveRoom();
+      }
+    });
+
+    return transport;
+  }
+
+  async startScreenshare() {
+    if (!this.joined) {
+      const error = new Error('Room has not joined');
+      // eslint-disable-next-line no-console
+      console.error('[MediaClient:startScreenshare]: error', error);
+      debugger; // eslint-disable-line no-debugger
+      showError(error);
+      throw error;
+    }
+
+    showInfo('Start screen share...');
+    // $('#share-screen').style.display = 'none';
+
+    // make sure we've joined the room and that we have a sending
+    // transport
+    if (!this.sendTransport) {
+      this.sendTransport = await this.createTransport('send');
+    }
+
+    // get a screen share track
+    this.localScreen = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: true,
+    });
+
+    // create a producer for video
+    this.screenVideoProducer = await this.sendTransport.produce({
+      track: this.localScreen.getVideoTracks()[0],
+      encodings: screenshareEncodings(),
+      appData: { mediaTag: 'screen-video' },
+    });
+
+    // create a producer for audio, if we have it
+    if (this.localScreen.getAudioTracks().length) {
+      this.screenAudioProducer = await this.sendTransport.produce({
+        track: this.localScreen.getAudioTracks()[0],
+        appData: { mediaTag: 'screen-audio' },
+      });
+    }
+
+    // handler for screen share stopped event (triggered by the
+    // browser's built-in screen sharing ui)
+    this.screenVideoProducer.track.onended = async () => {
+      console.log('[MediaClient:startScreenshare] screen share stopped');
+      try {
+        await this.screenVideoProducer.pause();
+        const { error } = await this.sig('close-producer', {
+          producerId: this.screenVideoProducer.id,
+        });
+        await this.screenVideoProducer.close();
+        this.screenVideoProducer = null;
+        if (error) {
+          // eslint-disable-next-line no-console
+          console.error('[MediaClient:startScreenshare]: error', error);
+          debugger; // eslint-disable-line no-debugger
+          showError(error);
+          // throw error;
+          // err(error);
+        }
+        if (this.screenAudioProducer) {
+          const { error } = await this.sig('close-producer', {
+            producerId: this.screenAudioProducer.id,
+          });
+          await this.screenAudioProducer.close();
+          this.screenAudioProducer = null;
+          if (error) {
+            // eslint-disable-next-line no-console
+            console.error('[MediaClient:startScreenshare]: error', error);
+            debugger; // eslint-disable-line no-debugger
+            showError(error);
+            // throw error;
+            // err(error);
+          }
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('[MediaClient:startScreenshare]: error', error);
+        debugger; // eslint-disable-line no-debugger
+        showError(error);
+        // throw error;
+      }
+      // $('#local-screen-pause-ctrl').style.display = 'none';
+      // $('#local-screen-audio-pause-ctrl').style.display = 'none';
+      // $('#share-screen').style.display = 'initial';
+    };
+
+    // $('#local-screen-pause-ctrl').style.display = 'block';
+    // if (screenAudioProducer) {
+    //   $('#local-screen-audio-pause-ctrl').style.display = 'block';
+    // }
+  }
+
+  async startCamera() {
+    if (this.localCam) {
+      return;
+    }
+    console.log('[MediaClient:startCamera]: start camera');
+    try {
+      this.localCam = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+    } catch (err) {
+      // console.error('start camera error', e);
+      const error = new Error('Start camera failed: ' + err.message || err);
+      // eslint-disable-next-line no-console
+      console.error('[MediaClient:startCamera]: error', error);
+      debugger; // eslint-disable-line no-debugger
+      showError(error);
+      throw error;
+    }
+  }
+
+  async sendCameraStreams() {
+    if (!this.joined) {
+      const error = new Error('Room has not joined');
+      // eslint-disable-next-line no-console
+      console.error('[MediaClient:sendCameraStreams]: error', error);
+      debugger; // eslint-disable-line no-debugger
+      showError(error);
+      throw error;
+    }
+
+    showInfo('Send camera streams...');
+    // $('#send-camera').style.display = 'none';
+
+    // make sure we've joined the room and started our camera. these
+    // functions don't do anything if they've already been called this
+    // session
+    await this.startCamera();
+
+    // create a transport for outgoing media, if we don't already have one
+    if (!this.sendTransport) {
+      this.sendTransport = await this.createTransport('send');
+    }
+
+    // start sending video. the transport logic will initiate a
+    // signaling conversation with the server to set up an outbound rtp
+    // stream for the camera video track. our createTransport() function
+    // includes logic to tell the server to start the stream in a paused
+    // state, if the checkbox in our UI is unchecked. so as soon as we
+    // have a client-side camVideoProducer object, we need to set it to
+    // paused as appropriate, too.
+    this.camVideoProducer = await this.sendTransport.produce({
+      track: this.localCam.getVideoTracks()[0],
+      encodings: camEncodings(),
+      appData: { mediaTag: 'cam-video' }
+    });
+    if (this.getCamPausedState()) {
+      try {
+        await this.camVideoProducer.pause();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // same thing for audio, but we can use our already-created
+    this.camAudioProducer = await this.sendTransport.produce({
+      track: this.localCam.getAudioTracks()[0],
+      appData: { mediaTag: 'cam-audio' },
+    });
+    if (this.getMicPausedState()) {
+      try {
+        this.camAudioProducer.pause();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // $('#stop-streams').style.display = 'initial';
+    // showCameraInfo();
+  }
+
+  startVideo() {
+    if (this.videoStarted) {
+      return;
+    }
+    let startPromise;
+    if (isGuide) {
+      if (shareScreen) {
+        startPromise = this.startScreenshare();
+      } else {
+        startPromise = this.sendCameraStreams();
+      }
+    } else {
+      // TODO: Connect to video stream
+      startPromise = sleep(2000);
+    }
+    startPromise
+      .then(() => {
+        toggleClassName(this.videoNode, 'visible', true);
+        this.events.emit('MediaClient:videoStarted');
+      })
+      .catch((err) => {
+        const error = new Error('Video start failed: ' + err.message);
+        // eslint-disable-next-line no-console
+        console.error('[MediaClient:startVideo]: error', error, { err });
+        debugger; // eslint-disable-line no-debugger
+        showError(error);
+        throw error;
+      });
+  }
+
+  stopVideo() {
+    if (!this.videoStarted) {
+      return;
+    }
+    toggleClassName(this.videoNode, 'visible', false);
+    this.events.emit('MediaClient:videoStopped');
   }
 }

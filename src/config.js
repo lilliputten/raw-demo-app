@@ -39,3 +39,4 @@ export const commonSocketAppId = isDev ? '/appId002' : '/appId003';
 // Media client socket...
 
 export const mediaClientUrl = prodServerUrl;
+export const mediaClientAppId = '/appId005/';
