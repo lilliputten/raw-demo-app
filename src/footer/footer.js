@@ -1,4 +1,5 @@
 import { Button } from '../components/Button/Button.js';
+import { isGuide } from '../config.js';
 import { getQuerySelector } from '../helpers/dom.js';
 
 let footerNode;
@@ -38,6 +39,9 @@ export function startFooter(params = {}) {
   let videoStarted = false;
   let audioStarted = false;
 
+  let hasVideo = false;
+  let hasAudio = false;
+
   function updateButtons() {
     startButton.setEnabled(!sessionStarted && !!onStart);
     endButton.setEnabled(sessionStarted && !!onStop);
@@ -45,12 +49,22 @@ export function startFooter(params = {}) {
     vrStartButton.setEnabled(sessionStarted && !panoStarted && !!onVrStart);
     vrStopButton.setEnabled(sessionStarted && panoStarted && !!onVrStop);
 
-    audioStartButton.setEnabled(sessionStarted && !audioStarted && !!onAudioStart);
+    audioStartButton.setEnabled(
+      sessionStarted && !audioStarted && !!onAudioStart && hasAudio && !isGuide,
+    );
     audioStopButton.setEnabled(sessionStarted && audioStarted && !!onAudioStop);
 
-    videoStartButton.setEnabled(sessionStarted && !videoStarted && !!onVideoStart);
+    videoStartButton.setEnabled(
+      sessionStarted && !videoStarted && !!onVideoStart && (isGuide || hasVideo),
+    );
     videoStopButton.setEnabled(sessionStarted && videoStarted && !!onVideoStop);
   }
+
+  events.on('MediaClient:updatePeers', (params) => {
+    hasVideo = params.hasVideo;
+    hasAudio = params.hasAudio;
+    updateButtons();
+  });
 
   events.on('tourSessionStarted', () => {
     sessionStarted = true;

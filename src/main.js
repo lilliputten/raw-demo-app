@@ -1,5 +1,4 @@
 import { PanoView } from './PanoView/PanoView.js';
-// import { initVideoView, startVideo, stopVideo } from './videoView/videoView.js';
 import { initHeader } from './header/header.js';
 import { initFooter, startFooter } from './footer/footer.js';
 import { showError, showSuccess } from './notify/notify.js';
@@ -9,14 +8,13 @@ import { MediaClient } from './MediaClient/MediaClient.js';
 
 export function main() {
   try {
-    const mainNode = document.getElementById('mainBox');
-    const events = new MicroEvents();
-    const panoView = new PanoView({ events });
     // Init components...
-    // initVideoView({ events });
     initHeader();
     initFooter();
     // Start...
+    const mainNode = document.getElementById('mainBox');
+    const events = new MicroEvents();
+    const panoView = new PanoView({ events });
     const tourSession = new TourSession({ events });
     const mediaClient = new MediaClient({ events, mainNode });
     Promise.all([panoView.init(), tourSession.init(), mediaClient.init()])

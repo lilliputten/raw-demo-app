@@ -24,14 +24,6 @@ export function setMediaSoupDebugLevel(mediaSoupDebugLevel) {
   }
 }
 
-export function removeVideoAudio(consumer) {
-  document.querySelectorAll(consumer.kind).forEach((v) => {
-    if (v.consumer === consumer) {
-      v.parentNode.removeChild(v);
-    }
-  });
-}
-
 export function sortPeers(peers) {
   return Object.entries(peers)
     .map(([id, info]) => ({ id, joinTs: info.joinTs, media: { ...info.media } }))
@@ -72,6 +64,12 @@ export function findVideoPeerId(peers) {
 }
 export function findAudioPeerId(peers) {
   return findPeerIdForMediaTags(peers, audioMediaTags);
+}
+export function hasVideoPeer(peers) {
+  return !!findPeerIdForMediaTags(peers, videoMediaTags);
+}
+export function hasAudioPeer(peers) {
+  return !!findPeerIdForMediaTags(peers, audioMediaTags);
 }
 
 export function findPeerForMediaTags(peers, mediaTags) {
