@@ -1,8 +1,8 @@
 {
   "name": "raw-demo-page",
   "description": "raw-demo-page",
-  "version": "3.0.0",
-  "changed": "2023.03.24, 22:46",
+  "version": "3.0.1",
+  "changed": "2023.03.27, 20:20",
   "author": "",
   "license": "MIT",
   "main": "index.html",
