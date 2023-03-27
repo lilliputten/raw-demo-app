@@ -9,6 +9,7 @@ import { MediaClient } from './MediaClient/MediaClient.js';
 
 export function main() {
   try {
+    const mainNode = document.getElementById('mainBox');
     const events = new MicroEvents();
     const panoView = new PanoView({ events });
     // Init components...
@@ -17,10 +18,12 @@ export function main() {
     initFooter();
     // Start...
     const tourSession = new TourSession({ events });
-    const mediaClient = new MediaClient({ events });
+    const mediaClient = new MediaClient({ events, mainNode });
     Promise.all([panoView.init(), tourSession.init(), mediaClient.init()])
       .then(() => {
         startFooter({
+          onAudioStart: mediaClient.startAudio.bind(mediaClient),
+          onAudioStop: mediaClient.stopAudio.bind(mediaClient),
           onVideoStart: mediaClient.startVideo.bind(mediaClient),
           onVideoStop: mediaClient.stopVideo.bind(mediaClient),
           onVrStart: panoView.start.bind(panoView),

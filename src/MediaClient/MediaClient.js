@@ -4,23 +4,41 @@ import { sleep } from '../helpers/async.js';
 import { querySelector, toggleClassName } from '../helpers/dom.js';
 import { uuidv4 } from '../helpers/strings.js';
 import { showError, showInfo } from '../notify/notify.js';
-import { camEncodings, removeVideoAudio, screenshareEncodings, setMediaSoupDebugLevel } from './mediaHelpers.js';
+import {
+  camEncodings,
+  findAudioPeer,
+  findAudioPeerId,
+  findVideoPeer,
+  findVideoPeerId,
+  getPeerAudioMediaTag,
+  getPeerVideoMediaTag,
+  removeVideoAudio,
+  screenshareEncodings,
+  setMediaSoupDebugLevel,
+} from './mediaHelpers.js';
 
 // Enable mediasoup logging
-const mediaSoupDebugLevel = '*';
+const mediaSoupDebugLevel = false; // '*';
 
 const pollDelay = 10000;
+
+// Use own socket interface
+const useExternalSocket = false;
 
 export class MediaClient {
   // Permanent parameters...
   events = undefined;
-  videoNode = undefined;
+  // videoNode = undefined;
+  mainNode = undefined;
   socket = undefined; // TODO!
   myPeerId = undefined;
   device = undefined;
 
+  // Current video and audio...
   videoStarted = false;
   audioStarted = false;
+  activeVideoPeerId = undefined;
+  activeAudioPeerId = undefined;
 
   // Media parameters...
   camAudioProducer = undefined;
@@ -40,27 +58,80 @@ export class MediaClient {
   inited = false;
   joined = false;
 
-  constructor({ events }) {
+  constructor({ events, mainNode }) {
+    if (!events) {
+      const error = new Error('Events orchestrator has not passed to constructor');
+      // eslint-disable-next-line no-console
+      console.error('[MediaClient:constructor]: error', error);
+      debugger; // eslint-disable-line no-debugger
+      showError(error);
+      throw error;
+    }
+    if (!mainNode) {
+      const error = new Error('Root dom node has not passed to constructor');
+      // eslint-disable-next-line no-console
+      console.error('[MediaClient:constructor]: error', error);
+      debugger; // eslint-disable-line no-debugger
+      showError(error);
+      throw error;
+    }
     this.events = events;
-    this.videoNode = querySelector('#videoView');
-    this.events.on('tourSessionStarted', ({ socket }) => {
-      this.socket = socket;
-      this.joinRoom();
-    });
-    this.events.on('tourSessionStopped', () => {
-      /* // Close connection...
-       * if (this.started) {
-       *   this.stop();
-       * }
-       */
-      this.leaveRoom();
-      this.socket = undefined;
-    });
+    this.mainNode = mainNode;
+    // this.videoNode = querySelector('#videoView');
     setMediaSoupDebugLevel(mediaSoupDebugLevel);
   }
 
   onUnload() {
-    this.sig('leave', {}, true);
+    this.sig('leave', {});
+  }
+
+  startSocket() {
+    return new Promise((resolve, reject) => {
+      if (useExternalSocket) {
+        return Promise.resolve();
+      }
+      /* console.log('[MediaClient:start]: Starting socket', {
+       *   commonSocketUrl,
+       *   commonSocketAppId,
+       * });
+       */
+      const opts = {
+        path: mediaClientAppId,
+        transports: ['websocket'],
+      };
+      this.socket = window.io(mediaClientUrl, opts);
+      this.socket.on('connect', resolve);
+      this.socket.on('connect_error', reject);
+      this.socket.on('connect_failed', reject);
+    });
+  }
+
+  stopSocket() {
+    if (!useExternalSocket) {
+      this.socket.disconnect();
+      this.socket.destroy();
+    }
+    this.socket = undefined;
+  }
+
+  startSession() {
+    this.startSocket()
+      .then(() => {
+        return this.joinRoom();
+      })
+      .catch((err) => {
+        const error = new Error('Session start failed: ' + (err.message || err));
+        // eslint-disable-next-line no-console
+        console.error('[MediaClient:startSession]: error', error, { err });
+        debugger; // eslint-disable-line no-debugger
+        showError(error);
+        // throw error;
+      });
+  }
+
+  stopSession() {
+    this.leaveRoom();
+    this.stopSocket();
   }
 
   init() {
@@ -74,6 +145,16 @@ export class MediaClient {
         // the page unloads
         this._bound_onUnload;
         window.addEventListener('unload', this._bound_onUnload);
+        // Add join/leave events...
+        this.events.on('tourSessionStarted', ({ socket }) => {
+          if (!useExternalSocket && socket) {
+            this.socket = socket;
+          }
+          this.startSession();
+        });
+        this.events.on('tourSessionStopped', () => {
+          this.stopSession();
+        });
         // Success
         this.inited = true;
         resolve();
@@ -100,6 +181,7 @@ export class MediaClient {
       if (this._bound_onUnload) {
         window.addEventListener('unload', this._bound_onUnload);
       }
+      this.device = undefined;
       this.inited = false;
     }
   }
@@ -115,7 +197,7 @@ export class MediaClient {
     // $('#join-control').style.display = 'none';
 
     try {
-      // signal that we're a new peer and initialize our
+      // Signal that we're a new peer and initialize our
       // mediasoup-client device, if this is our first time connecting
       const { routerRtpCapabilities } = await this.sig('join-as-new-peer');
       if (!this.device.loaded && routerRtpCapabilities) {
@@ -126,29 +208,34 @@ export class MediaClient {
         this.joined = true;
         // $('#leave-room').style.display = 'initial';
         this.events.emit('MediaClient:roomJoined');
+        // Super-simple signaling: let's poll at intervals
+        this.pollAndUpdate();
+        this.pollingInterval = setInterval(async () => {
+          try {
+            const result = await this.pollAndUpdate();
+            const { error: err } = result;
+            if (err) {
+              throw err;
+            }
+          } catch (err) {
+            const error = new Error('Poll failed: ' + (err.message || err));
+            // eslint-disable-next-line no-console
+            console.error('[MediaClient:joinRoom]: poll error', error);
+            debugger; // eslint-disable-line no-debugger
+            showError(error);
+            // clearInterval(this.pollingInterval); // ???
+            throw error;
+          }
+        }, pollDelay);
       }
     } catch (err) {
-      const error = new Error('Media client start failed: ' + err.message);
+      const error = new Error('Media client start failed: ' + (err.message || err));
       // eslint-disable-next-line no-console
       console.error('[MediaClient:joinRoom]: error', error, { err });
       debugger; // eslint-disable-line no-debugger
       showError(error);
       throw error;
     }
-
-    // super-simple signaling: let's poll at 1-second intervals
-    this.pollingInterval = setInterval(async () => {
-      const { error: err } = await this.pollAndUpdate();
-      if (err) {
-        clearInterval(this.pollingInterval);
-        const error = new Error('Poll failed: ' + err.message || err);
-        // eslint-disable-next-line no-console
-        console.error('[MediaClient:joinRoom]: poll error', error);
-        debugger; // eslint-disable-line no-debugger
-        showError(error);
-        throw error;
-      }
-    }, pollDelay);
   }
 
   async leaveRoom() {
@@ -164,7 +251,7 @@ export class MediaClient {
     // close everything on the server-side (transports, producers, consumers)
     const { error: err } = await this.sig('leave');
     if (err) {
-      const error = new Error('Leave request failed: ' + err.message);
+      const error = new Error('Leave request failed: ' + (err.message || err));
       // eslint-disable-next-line no-console
       console.error('[MediaClient:leaveRoom]: error', error);
       debugger; // eslint-disable-line no-debugger
@@ -172,7 +259,8 @@ export class MediaClient {
       throw error;
     }
 
-    this.stopTransports();
+    await Promise.all([this.stopVideo(), this.stopAudio()]);
+    await this.stopTransports();
 
     this.camVideoProducer = undefined;
     this.camAudioProducer = undefined;
@@ -217,13 +305,274 @@ export class MediaClient {
         this.sendTransport = undefined;
       }
     } catch (err) {
-      const error = new Error('Transports stop failed: ' + err.message);
+      const error = new Error('Transports stop failed: ' + (err.message || err));
       // eslint-disable-next-line no-console
-      console.error('[MediaClient:leaveRoom]: error', error);
+      console.error('[MediaClient:stopTransports]: error', error);
       debugger; // eslint-disable-line no-debugger
       showError(error);
       throw error;
     }
+  }
+
+  findConsumerForTrack(peerId, mediaTag) {
+    return this.consumers.find(
+      (c) => c.appData.peerId === peerId && c.appData.mediaTag === mediaTag,
+    );
+  }
+
+  async pauseConsumer(consumer) {
+    if (consumer) {
+      const { peerId, mediaTag } = consumer.appData;
+      console.log('[MediaClient:pauseConsumer]', { peerId, mediaTag });
+      try {
+        await this.sig('pause-consumer', { consumerId: consumer.id });
+        await consumer.pause();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
+  async resumeConsumer(consumer) {
+    if (consumer) {
+      const { peerId, mediaTag } = consumer.appData;
+      console.log('[MediaClient:resumeConsumer]', { peerId, mediaTag });
+      try {
+        await this.sig('resume-consumer', { consumerId: consumer.id });
+        await consumer.resume();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
+  addVideoAudio(consumer) {
+    if (!(consumer && consumer.track)) {
+      return;
+    }
+    if (!this.mainNode) {
+      const error = new Error('Root dom node is not specified');
+      // eslint-disable-next-line no-console
+      console.error('[MediaClient:addVideoAudio]: error', error);
+      debugger; // eslint-disable-line no-debugger
+      showError(error);
+      throw error;
+    }
+    const isVideo = consumer.kind === 'video';
+    const el = document.createElement(consumer.kind);
+    // set some attributes on our audio and video elements to make
+    // mobile Safari happy. note that for audio to play you need to be
+    // capturing from the mic/camera
+    if (isVideo) {
+      el.setAttribute('playsinline', true);
+    } else {
+      el.setAttribute('playsinline', true);
+      el.setAttribute('autoplay', true);
+    }
+    this.mainNode.appendChild(el);
+    el.srcObject = new MediaStream([consumer.track.clone()]);
+    el.consumer = consumer;
+    // let's "yield" and return before playing, rather than awaiting on
+    // play() succeeding. play() will not succeed on a producer-paused
+    // track until the producer unpauses.
+    el.play()
+      .then(() => {})
+      .catch((err) => {
+        const error = new Error('Stream playing error: ' + (err.message || err));
+        // eslint-disable-next-line no-console
+        console.error('[MediaClient:addVideoAudio]: error', error, { err });
+        debugger; // eslint-disable-line no-debugger
+        showError(error);
+        throw error;
+      });
+    if (isVideo) {
+      toggleClassName(el, 'visible', true);
+    }
+  }
+
+  removeVideoAudio(consumer) {
+    document.querySelectorAll(consumer.kind).forEach((v) => {
+      if (v.consumer === consumer) {
+        v.parentNode.removeChild(v);
+      }
+    });
+  }
+
+  async subscribeToTrack(peerId, mediaTag) {
+    console.log('[MediaClient:subscribeToTrack] subscribe to track', peerId, mediaTag);
+
+    // create a receive transport if we don't already have one
+    if (!this.recvTransport) {
+      this.recvTransport = await this.createTransport('recv');
+    }
+
+    // if we do already have a consumer, we shouldn't have called this
+    // method
+    let consumer = this.findConsumerForTrack(peerId, mediaTag);
+    if (consumer) {
+      const error = new Error('already have consumer for track ' + peerId + ' (' + mediaTag + ')');
+      // eslint-disable-next-line no-console
+      console.error('[MediaClient:subscribeToTrack]: error', error, { peerId, mediaTag });
+      debugger; // eslint-disable-line no-debugger
+      showError(error);
+      // throw error;
+      return;
+    }
+
+    // ask the server to create a server-side consumer object and send
+    // us back the info we need to create a client-side consumer
+    const consumerParameters = await this.sig('recv-track', {
+      mediaTag,
+      mediaPeerId: peerId,
+      rtpCapabilities: this.device.rtpCapabilities,
+    });
+    console.log('[MediaClient:subscribeToTrack] consumer parameters', consumerParameters);
+    consumer = await this.recvTransport.consume({
+      ...consumerParameters,
+      appData: { peerId, mediaTag },
+    });
+    console.log('[MediaClient:subscribeToTrack] created new consumer', consumer.id);
+
+    // the server-side consumer will be started in paused state. wait
+    // until we're connected, then send a resume request to the server
+    // to get our first keyframe and start displaying video
+    while (this.recvTransport.connectionState !== 'connected') {
+      console.log('[MediaClient:subscribeToTrack] transport connstate', {
+        connectionState: this.recvTransport.connectionState,
+      });
+      await sleep(100);
+    }
+    // okay, we're ready. let's ask the peer to send us media
+    await this.resumeConsumer(consumer);
+
+    // keep track of all our consumers
+    this.consumers.push(consumer);
+
+    // ui
+    this.addVideoAudio(consumer);
+    // updatePeersDisplay();
+  }
+
+  async unsubscribeFromTrack(peerId, mediaTag) {
+    const consumer = this.findConsumerForTrack(peerId, mediaTag);
+    if (!consumer) {
+      return;
+    }
+    console.log('[MediaClient:unsubscribeFromTrack] unsubscribe from track', peerId, mediaTag);
+    try {
+      await this.closeConsumer(consumer);
+    } catch (err) {
+      const error = new Error('Failed unsubscribing from track: ' + (err.message || err));
+      // eslint-disable-next-line no-console
+      console.error('[MediaClient:unsubscribeFromTrack]: error', error, { peerId, mediaTag });
+      debugger; // eslint-disable-line no-debugger
+      showError(error);
+      // throw error;
+      return;
+    }
+    // force update of ui
+    // updatePeersDisplay();
+  }
+
+  async unsubscribeFromVideoTrack() {
+    const { lastPollSyncData: peers, videoStarted, activeVideoPeerId } = this;
+    if (!videoStarted || !activeVideoPeerId) {
+      return;
+    }
+    const peer = peers[activeVideoPeerId];
+    await this.unsubscribeFromTrack(activeVideoPeerId, getPeerVideoMediaTag(peer));
+    this.activeVideoPeerId = undefined;
+  }
+
+  async unsubscribeFromAudioTrack() {
+    const { lastPollSyncData: peers, audioStarted, activeAudioPeerId } = this;
+    if (!audioStarted || !activeAudioPeerId) {
+      return;
+    }
+    const peer = peers[activeAudioPeerId];
+    await this.unsubscribeFromTrack(activeAudioPeerId, getPeerAudioMediaTag(peer));
+    this.activeAudioPeerId = undefined;
+  }
+
+  async subscribeToVideoTrack() {
+    const { lastPollSyncData: peers, videoStarted, activeVideoPeerId } = this;
+    const videoPeerId = findVideoPeerId(peers);
+    if (!videoStarted || !videoPeerId) {
+      if (activeVideoPeerId) {
+        return this.unsubscribeFromVideoTrack();
+      }
+      return;
+    }
+    console.log('[MediaClient:subscribeToVideoTrack]: done', {
+      videoPeerId,
+      peers,
+    });
+    if (
+      activeVideoPeerId &&
+      activeVideoPeerId !== videoPeerId &&
+      this.consumers[activeVideoPeerId]
+    ) {
+      // NOTE: Inactive peers can be removed in `pollAndUpdate`
+      const peer = peers[activeVideoPeerId];
+      await this.unsubscribeFromTrack(activeVideoPeerId, getPeerVideoMediaTag(peer));
+      this.activeVideoPeerId = undefined;
+    }
+    if (!activeVideoPeerId) {
+      const peer = peers[videoPeerId];
+      await this.subscribeToTrack(videoPeerId, getPeerVideoMediaTag(peer));
+      this.activeVideoPeerId = videoPeerId;
+    }
+    if (this.activeVideoPeerId) {
+      this.videoStarted = true;
+      // TODO: Send event (video totally connected)?
+      console.log('[MediaClient:subscribeToVideoTrack]: started');
+    }
+  }
+
+  async subscribeToAudioTrack() {
+    const {
+      currentActiveSpeaker,
+      lastPollSyncData: peers,
+      // consumers,
+      audioStarted,
+      activeAudioPeerId,
+    } = this;
+    const audioPeerId = currentActiveSpeaker?.peerId || findAudioPeerId(peers);
+    if (!audioStarted || !audioPeerId) {
+      if (activeAudioPeerId) {
+        return this.unsubscribeFromAudioTrack();
+      }
+      return;
+    }
+    console.log('[MediaClient:subscribeToAudioTrack]: done', {
+      audioPeerId,
+      peers,
+    });
+    if (
+      activeAudioPeerId &&
+      activeAudioPeerId !== audioPeerId &&
+      this.consumers[activeAudioPeerId]
+    ) {
+      // NOTE: Inactive peers can be removed in `pollAndUpdate`
+      const peer = peers[activeAudioPeerId];
+      await this.unsubscribeFromTrack(activeAudioPeerId, getPeerAudioMediaTag(peer));
+      this.activeAudioPeerId = undefined;
+    }
+    if (!activeAudioPeerId) {
+      const peer = peers[audioPeerId];
+      await this.subscribeToTrack(audioPeerId, getPeerAudioMediaTag(peer));
+      this.activeAudioPeerId = audioPeerId;
+    }
+    if (this.activeAudioPeerId) {
+      this.audioStarted = true;
+      // TODO: Send event (audio totally connected)?
+      console.log('[MediaClient:subscribeToAudioTrack]: started');
+    }
+  }
+
+  async updateActivePeers() {
+    return Promise.all([this.subscribeToVideoTrack(), this.subscribeToAudioTrack()]);
+    // TODO: consumers[id].media['screen-video', 'cam-video', 'cam-audio']
   }
 
   async pollAndUpdate() {
@@ -282,7 +631,9 @@ export class MediaClient {
       }
     });
 
-    this.lastPollSyncData = peers;
+    this.lastPollSyncData = peers; // Used?
+
+    this.updateActivePeers();
 
     return {}; // return an empty object if there isn't an error
   }
@@ -300,7 +651,7 @@ export class MediaClient {
       this.consumers = this.consumers.filter((c) => c !== consumer);
       removeVideoAudio(consumer);
     } catch (err) {
-      const error = new Error('Coosumer close failed: ' + err.message);
+      const error = new Error('Consumer close failed: ' + (err.message || err));
       // eslint-disable-next-line no-console
       console.error('[MediaClient:joinRoom]: error', error, { err });
       debugger; // eslint-disable-line no-debugger
@@ -309,47 +660,131 @@ export class MediaClient {
     }
   }
 
-  async sig(endpoint, data, beacon) {
-    try {
-      const headers = {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      };
-      const body = JSON.stringify({ ...data, peerId: this.myPeerId });
-      const url = mediaClientUrl + mediaClientAppId + endpoint;
-      const fetchParams = {
-        method: 'POST',
-        body,
-        headers,
-        mode: 'cors',
-      };
-      console.log('[MediaClient:sig] start', {
-        url,
-        headers,
-        fetchParams,
-        body,
-        endpoint,
-        data,
-        beacon,
-      });
-      if (beacon) {
-        navigator.sendBeacon(url, body);
-        return null;
+  socketRequest(type, data = {}) {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        const error = new Error('Socket interface has not initialized');
+        // eslint-disable-next-line no-console
+        console.error('[MediaClient:socketRequest]: error', error);
+        debugger; // eslint-disable-line no-debugger
+        showError(error);
+        reject(error);
       }
-      const response = await fetch(url, fetchParams);
+      this.socket.emit(type, data, (result) => {
+        const { error: err } = result;
+        if (err) {
+          const error = new Error('Socket request failed: ' + (err.message || err));
+          // eslint-disable-next-line no-console
+          console.error('[MediaClient:socketRequest]: error', error, {
+            err,
+            result,
+            data,
+            type,
+          });
+          debugger; // eslint-disable-line no-debugger
+          showError(error);
+          reject(error);
+        } else {
+          resolve(result);
+        }
+      });
+    });
+  }
+
+  /* // UNUSED: Old sig method
+   * async sigFetch(endpoint, data, beacon) {
+   *   try {
+   *     const headers = {
+   *       'Content-Type': 'application/json',
+   *       'Access-Control-Allow-Origin': '*',
+   *     };
+   *     const body = JSON.stringify({ ...data, peerId: this.myPeerId });
+   *     const url = mediaClientUrl + mediaClientAppId + endpoint;
+   *     const fetchParams = {
+   *       method: 'POST',
+   *       body,
+   *       headers,
+   *       mode: 'cors',
+   *     };
+   *     console.log('[MediaClient:sig] start', {
+   *       url,
+   *       headers,
+   *       fetchParams,
+   *       body,
+   *       endpoint,
+   *       data,
+   *       beacon,
+   *     });
+   *     if (beacon) {
+   *       navigator.sendBeacon(url, body);
+   *       return null;
+   *     }
+   *     const response = await fetch(url, fetchParams);
+   *     console.log('[MediaClient:sig] success', {
+   *       response,
+   *       url,
+   *       headers,
+   *       fetchParams,
+   *       body,
+   *       endpoint,
+   *       data,
+   *       beacon,
+   *     });
+   *     return await response.json();
+   *   } catch (err) {
+   *     const error = new Error('Remote request (sig) failed: ' + (err.message || err));
+   *     // eslint-disable-next-line no-console
+   *     console.error('[MediaClient:sig]: error', error, { err });
+   *     debugger; // eslint-disable-line no-debugger
+   *     showError(error);
+   *     throw error;
+   *     // return { error };
+   *   }
+   * }
+   */
+
+  // NOTE: Beacon is unused!
+  async sig(message, params, beacon) {
+    try {
+      /* // UNUSED: Old method
+       * const headers = {
+       *   'Content-Type': 'application/json',
+       *   'Access-Control-Allow-Origin': '*',
+       * };
+       * const body = JSON.stringify({ ...params, peerId: this.myPeerId });
+       * const url = mediaClientUrl + mediaClientAppId + message;
+       * const fetchParams = {
+       *   method: 'POST',
+       *   body,
+       *   headers,
+       *   mode: 'cors',
+       * };
+       * console.log('[MediaClient:sig] start', {
+       *   url,
+       *   headers,
+       *   fetchParams,
+       *   body,
+       *   message,
+       *   params,
+       *   beacon,
+       * });
+       * if (beacon) {
+       *   navigator.sendBeacon(url, body);
+       *   return null;
+       * }
+       * const response = await fetch(url, fetchParams);
+       * return await response.json();
+       */
+      const data = await this.socketRequest(message, { ...params, peerId: this.myPeerId });
       console.log('[MediaClient:sig] success', {
-        response,
-        url,
-        headers,
-        fetchParams,
-        body,
-        endpoint,
+        params,
+        message,
         data,
         beacon,
       });
-      return await response.json();
+      return data;
     } catch (err) {
-      const error = new Error('Remote request (sig) failed: ' + err.message);
+      const error = new Error('Remote request (sig) failed: ' + (err.message || err));
       // eslint-disable-next-line no-console
       console.error('[MediaClient:sig]: error', error, { err });
       debugger; // eslint-disable-line no-debugger
@@ -407,7 +842,7 @@ export class MediaClient {
       });
       if (err) {
         // err('error connecting transport', direction, error);
-        const error = new Error('Error connecting transport: ' + err.message || err);
+        const error = new Error('Error connecting transport: ' + (err.message || err));
         // eslint-disable-next-line no-console
         console.error('[MediaClient:createTransport:connect]: error', error);
         debugger; // eslint-disable-line no-debugger
@@ -448,7 +883,7 @@ export class MediaClient {
           appData,
         });
         if (err) {
-          const error = new Error('Error setting up server-side producer: ' + err.message || err);
+          const error = new Error('Error setting up server-side producer: ' + (err.message || err));
           // eslint-disable-next-line no-console
           console.error('[MediaClient:createTransport:produce]: error', error);
           debugger; // eslint-disable-line no-debugger
@@ -583,7 +1018,7 @@ export class MediaClient {
       });
     } catch (err) {
       // console.error('start camera error', e);
-      const error = new Error('Start camera failed: ' + err.message || err);
+      const error = new Error('Start camera failed: ' + (err.message || err));
       // eslint-disable-next-line no-console
       console.error('[MediaClient:startCamera]: error', error);
       debugger; // eslint-disable-line no-debugger
@@ -625,7 +1060,7 @@ export class MediaClient {
     this.camVideoProducer = await this.sendTransport.produce({
       track: this.localCam.getVideoTracks()[0],
       encodings: camEncodings(),
-      appData: { mediaTag: 'cam-video' }
+      appData: { mediaTag: 'cam-video' },
     });
     if (this.getCamPausedState()) {
       try {
@@ -652,41 +1087,81 @@ export class MediaClient {
     // showCameraInfo();
   }
 
-  startVideo() {
-    if (this.videoStarted) {
-      return;
-    }
-    let startPromise;
-    if (isGuide) {
-      if (shareScreen) {
-        startPromise = this.startScreenshare();
-      } else {
-        startPromise = this.sendCameraStreams();
+  async startVideo() {
+    try {
+      if (this.videoStarted) {
+        return;
       }
-    } else {
-      // TODO: Connect to video stream
-      startPromise = sleep(2000);
+      this.videoStarted = 'starting';
+      if (isGuide) {
+        if (shareScreen) {
+          await this.startScreenshare();
+        } else {
+          await this.sendCameraStreams();
+        }
+      }
+      // toggleClassName(this.videoNode, 'visible', true);
+      this.events.emit('MediaClient:videoStarted'); // TODO: Send message only on start finished?
+      // TODO: Try to start video now?
+      return this.updateActivePeers();
+    } catch (err) {
+      const error = new Error('Video start failed: ' + (err.message || err));
+      // eslint-disable-next-line no-console
+      console.error('[MediaClient:startVideo]: error', error, { err });
+      debugger; // eslint-disable-line no-debugger
+      showError(error);
+      throw error;
     }
-    startPromise
-      .then(() => {
-        toggleClassName(this.videoNode, 'visible', true);
-        this.events.emit('MediaClient:videoStarted');
-      })
-      .catch((err) => {
-        const error = new Error('Video start failed: ' + err.message);
-        // eslint-disable-next-line no-console
-        console.error('[MediaClient:startVideo]: error', error, { err });
-        debugger; // eslint-disable-line no-debugger
-        showError(error);
-        throw error;
-      });
   }
 
-  stopVideo() {
+  async stopVideo() {
     if (!this.videoStarted) {
       return;
     }
-    toggleClassName(this.videoNode, 'visible', false);
+    // TODO: Stop video (guide: camera or screenshare)
+    // toggleClassName(this.videoNode, 'visible', false);
+    await this.unsubscribeFromVideoTrack();
+    this.videoStarted = false;
     this.events.emit('MediaClient:videoStopped');
   }
+
+  async startAudio() {
+    try {
+      if (this.audioStarted) {
+        return;
+      }
+      this.audioStarted = 'starting';
+      if (isGuide) {
+        if (shareScreen) {
+          await this.startScreenshare();
+        } else {
+          await this.sendCameraStreams();
+        }
+      }
+      // toggleClassName(this.audioNode, 'visible', true);
+      this.events.emit('MediaClient:audioStarted'); // TODO: Send message only on start finished?
+      // TODO: Try to start audio now?
+      return this.updateActivePeers();
+    } catch (err) {
+      const error = new Error('Audio start failed: ' + (err.message || err));
+      // eslint-disable-next-line no-console
+      console.error('[MediaClient:startAudio]: error', error, { err });
+      debugger; // eslint-disable-line no-debugger
+      showError(error);
+      throw error;
+    }
+  }
+
+  async stopAudio() {
+    if (!this.audioStarted) {
+      return;
+    }
+    // TODO: Stop audio (guide: camera or screenshare)
+    // toggleClassName(this.audioNode, 'visible', false);
+    await this.unsubscribeFromAudioTrack();
+    this.audioStarted = false;
+    this.events.emit('MediaClient:audioStopped');
+  }
+
+  // TODO: startAudio, stopAudio
 }
