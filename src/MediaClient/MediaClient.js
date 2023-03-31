@@ -1,4 +1,13 @@
-import { mediaClientUrl, mediaClientAppId, shareScreen, isGuide } from '../config.js';
+import {
+  // isDev,
+  mediaClientUrl,
+  mediaClientAppId,
+  shareScreen,
+  isGuide,
+  mediaClientPollDelay,
+  mediaSoupDebugLevel,
+  enableMediaClientPolls,
+} from '../config.js';
 import { sleep } from '../helpers/async.js';
 import { toggleClassName } from '../helpers/dom.js';
 import { uuidv4 } from '../helpers/strings.js';
@@ -14,11 +23,6 @@ import {
   screenshareEncodings,
   setMediaSoupDebugLevel,
 } from './mediaHelpers.js';
-
-// Enable mediasoup logging
-const mediaSoupDebugLevel = false; // '*';
-
-const pollDelay = 3000;
 
 // Use own socket interface
 const useExternalSocket = false;
@@ -56,7 +60,7 @@ export class MediaClient {
   inited = false;
   joined = false;
 
-  constructor({ events, mainNode }) {
+  constructor({ events, mainNode, socket }) {
     if (!events) {
       const error = new Error('Events orchestrator has not passed to constructor');
       // eslint-disable-next-line no-console
@@ -75,12 +79,26 @@ export class MediaClient {
     }
     this.events = events;
     this.mainNode = mainNode;
+    if (socket && useExternalSocket) {
+      this.socket = socket;
+    }
     // this.videoNode = querySelector('#videoView');
     setMediaSoupDebugLevel(mediaSoupDebugLevel);
+    if (useExternalSocket) {
+      this.events.on('tourSessionStarted', ({ socket }) => {
+        this.setExternalSocket(socket);
+      });
+    }
   }
 
   onUnload() {
     this.sig('leave', {});
+  }
+
+  setExternalSocket(socket) {
+    if (useExternalSocket) {
+      this.socket = socket;
+    }
   }
 
   startSocket() {
@@ -127,8 +145,9 @@ export class MediaClient {
       });
   }
 
-  stopSession() {
-    this.leaveRoom();
+  async stopSession() {
+    await this.leaveRoom();
+    // NOTE: Stop socket only after room had leaved.
     this.stopSocket();
   }
 
@@ -177,7 +196,7 @@ export class MediaClient {
   destroy() {
     if (this.inited) {
       if (this._bound_onUnload) {
-        window.addEventListener('unload', this._bound_onUnload);
+        window.removeEventListener('unload', this._bound_onUnload);
       }
       this.device = undefined;
       this.inited = false;
@@ -185,30 +204,33 @@ export class MediaClient {
   }
 
   async joinRoom() {
-    if (this.joined) {
-      return;
-    }
-    if (!this.inited) {
+    if (!this.inited || this.joined) {
       return;
     }
     // log('join room');
     // $('#join-control').style.display = 'none';
 
+    this.joined = 'joining';
+
     try {
       // Signal that we're a new peer and initialize our
       // mediasoup-client device, if this is our first time connecting
       const { routerRtpCapabilities } = await this.sig('join-as-new-peer');
-      if (!this.device.loaded && routerRtpCapabilities) {
+      if (!this.device.loaded) {
+        // if (!routerRtpCapabilities) { // TODO: Throw an error?
         await this.device.load({ routerRtpCapabilities });
-        /* console.log('[MediaClient:joinRoom]: success', {
+        /* console.log('[MediaClient:joinRoom]: device loaded', {
          *   routerRtpCapabilities,
          * });
          */
-        this.joined = true;
-        // $('#leave-room').style.display = 'initial';
-        this.events.emit('MediaClient:roomJoined');
-        // Super-simple signaling: let's poll at intervals
-        this.pollAndUpdate();
+      }
+      // console.log('[MediaClient:joinRoom]: success');
+      this.joined = true;
+      // $('#leave-room').style.display = 'initial';
+      this.events.emit('MediaClient:roomJoined');
+      // Super-simple signaling: let's poll at intervals
+      this.pollAndUpdate();
+      if (enableMediaClientPolls) {
         this.pollingInterval = setInterval(async () => {
           try {
             const result = await this.pollAndUpdate();
@@ -225,9 +247,10 @@ export class MediaClient {
             // clearInterval(this.pollingInterval); // ???
             throw error;
           }
-        }, pollDelay);
+        }, mediaClientPollDelay);
       }
     } catch (err) {
+      this.joined = false;
       const error = new Error('Media client start failed: ' + (err.message || err));
       // eslint-disable-next-line no-console
       console.error('[MediaClient:joinRoom]: error', error, { err });
@@ -238,14 +261,21 @@ export class MediaClient {
   }
 
   async leaveRoom() {
-    if (!this.joined) {
+    if (!this.joined || this.joined === 'leaving') {
       return;
     }
 
+    this.joined = 'leaving';
+
     showInfo('Leaving room...');
+    // console.log('[MediaClient:leaveRoom]: start');
+    // TODO: Unload this.device?
 
     // stop polling
     clearInterval(this.pollingInterval);
+
+    await Promise.all([this.stopVideo(), this.stopAudio()]);
+    await this.stopTransports();
 
     // close everything on the server-side (transports, producers, consumers)
     const { error: err } = await this.sig('leave');
@@ -257,9 +287,6 @@ export class MediaClient {
       showError(error);
       throw error;
     }
-
-    await Promise.all([this.stopVideo(), this.stopAudio()]);
-    await this.stopTransports();
 
     this.camVideoProducer = undefined;
     this.camAudioProducer = undefined;
@@ -295,6 +322,7 @@ export class MediaClient {
     // don't need to do anything beyond closing the transports, except
     // to set all our local variables to their initial states
     try {
+      // TODO: To use concurrent executing like (Promise.all or race).
       if (this.recvTransport) {
         await this.recvTransport.close();
         this.recvTransport = undefined;
@@ -487,6 +515,7 @@ export class MediaClient {
       return;
     }
     /* console.log('[MediaClient:unsubscribeFromTrack] start', {
+     *   consumer,
      *   peerId,
      *   mediaTag,
      * });
@@ -512,7 +541,15 @@ export class MediaClient {
       return;
     }
     const peer = peers[activeVideoPeerId];
-    await this.unsubscribeFromTrack(activeVideoPeerId, getPeerVideoMediaTag(peer));
+    const mediaTag = getPeerVideoMediaTag(peer);
+    /* console.log('[MediaClient:unsubscribeFromVideoTrack]', {
+     *   peer,
+     *   mediaTag,
+     *   activeVideoPeerId,
+     *   peers,
+     * });
+     */
+    await this.unsubscribeFromTrack(activeVideoPeerId, mediaTag);
     this.activeVideoPeerId = undefined;
   }
 
@@ -713,18 +750,28 @@ export class MediaClient {
     if (!consumer) {
       return;
     }
-    showInfo('Closing consumer ' + consumer.appData.peerId + ' ' + consumer.appData.mediaTag);
+    const { appData, id: consumerId } = consumer;
+    const { peerId, mediaTag } = appData;
+    showInfo('Closing consumer ' + peerId + ' ' + mediaTag);
+    /* console.log('[MediaClient:closeConsumer]', {
+     *   consumerId,
+     *   peerId,
+     *   mediaTag,
+     *   appData,
+     *   consumer,
+     * });
+     */
     try {
       // tell the server we're closing this consumer. (the server-side
       // consumer may have been closed already, but that's okay.)
-      await this.sig('close-consumer', { consumerId: consumer.id });
+      await this.sig('close-consumer', { consumerId });
       await consumer.close();
       this.consumers = this.consumers.filter((c) => c !== consumer);
       this.removeVideoAudio(consumer);
     } catch (err) {
       const error = new Error('Consumer close failed: ' + (err.message || err));
       // eslint-disable-next-line no-console
-      console.error('[MediaClient:joinRoom]: error', error, { err });
+      console.error('[MediaClient:closeConsumer]: error', error, { err });
       debugger; // eslint-disable-line no-debugger
       showError(error);
       // throw error;
@@ -741,17 +788,17 @@ export class MediaClient {
         showError(error);
         reject(error);
       }
-      /* console.log('[MediaClient:socketRequest]: start', {
+      /* console.log('[MediaClient:socketRequest]: start', type, {
        *   data,
        *   type,
        * });
        */
       this.socket.emit(type, data, (result) => {
         const { error: err } = result;
-        if (err) {
+        if (err && (typeof err !== 'object' || Object.keys(err).length)) {
           const error = new Error('Socket request failed: ' + (err.message || err));
           // eslint-disable-next-line no-console
-          console.error('[MediaClient:socketRequest]: error', error, {
+          console.error('[MediaClient:socketRequest]: error', type, error, {
             err,
             result,
             data,
@@ -768,20 +815,31 @@ export class MediaClient {
   }
 
   async sig(message, params) {
+    const requestData = { ...params, peerId: this.myPeerId };
+    /* console.log('[MediaClient:sig] start', message, {
+     *   requestData,
+     *   params,
+     *   message,
+     * });
+     */
     try {
-      const data = await this.socketRequest(message, { ...params, peerId: this.myPeerId });
-      /*
-       * console.log('[MediaClient:sig] success', {
+      const result = await this.socketRequest(message, requestData);
+      /* console.log('[MediaClient:sig] success', message, {
        *   params,
        *   message,
-       *   data,
+       *   result,
        * });
        */
-      return data;
+      return result;
     } catch (err) {
       const error = new Error('Remote request (sig) failed: ' + (err.message || err));
       // eslint-disable-next-line no-console
-      console.error('[MediaClient:sig]: error', error, { err });
+      console.error('[MediaClient:sig]: error', error, {
+        err,
+        message,
+        params,
+        requestData,
+      });
       debugger; // eslint-disable-line no-debugger
       showError(error);
       throw error;
@@ -898,7 +956,7 @@ export class MediaClient {
     // for this simple demo, any time a transport transitions to closed,
     // failed, or disconnected, leave the room and reset
     transport.on('connectionstatechange', async (state) => {
-      /* console.log('[MediaClient:createTransport:produce] connectionstatechange', {
+      /* console.log('[MediaClient:createTransport:connectionstatechange]', state, {
        *   id: transport.id,
        *   state,
        * });
@@ -907,7 +965,8 @@ export class MediaClient {
       // closed is an error (we never close these transports except when
       // we leave the room)
       if (state === 'closed' || state === 'failed' || state === 'disconnected') {
-        /* console.log('[MediaClient:createTransport:produce] transport closed', {
+        /* console.log('[MediaClient:createTransport:connectionstatechange] transport closed', {
+         *   id: transport.id,
          *   state,
          * });
          */
@@ -1120,8 +1179,7 @@ export class MediaClient {
       showInfo('Video starting...');
       const { lastPollSyncData: peers } = this;
       const hasVideo = hasVideoPeer(peers);
-      /*
-       * console.log('[MediaClient:startVideo]', {
+      /* console.log('[MediaClient:startVideo]', {
        *   hasVideo,
        *   peers,
        * });
@@ -1129,7 +1187,11 @@ export class MediaClient {
       if (!isGuide && !hasVideo) {
         const error = new Error('No video peers found');
         // eslint-disable-next-line no-console
-        console.error('[MediaClient:startVideo]: error', error);
+        console.error('[MediaClient:startVideo]: error', error, {
+          peers,
+          hasVideo,
+          isGuide,
+        });
         debugger; // eslint-disable-line no-debugger
         showError(error);
         throw error;

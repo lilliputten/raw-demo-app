@@ -43,6 +43,25 @@ export function startFooter(params = {}) {
   let hasAudio = false;
 
   function updateButtons() {
+    /* console.log('footerQuery:updateButtons', {
+     *   isGuide,
+     *   hasAudio,
+     *   hasVideo,
+     *   sessionStarted,
+     *   panoStarted,
+     *   audioStarted,
+     *   videoStarted,
+     *   onAudioStart,
+     *   onAudioStop,
+     *   onStart,
+     *   onStop,
+     *   onVideoStart,
+     *   onVideoStop,
+     *   onVrStart,
+     *   onVrStop,
+     * });
+     */
+
     startButton.setEnabled(!sessionStarted && !!onStart);
     endButton.setEnabled(sessionStarted && !!onStop);
 
@@ -61,44 +80,53 @@ export function startFooter(params = {}) {
   }
 
   events.on('MediaClient:updatePeers', (params) => {
+    // console.log('footer:event:MediaClient:updatePeers', { params });
     hasVideo = params.hasVideo;
     hasAudio = params.hasAudio;
     updateButtons();
   });
 
   events.on('tourSessionStarted', () => {
+    // console.log('footer:event:tourSessionStarted');
     sessionStarted = true;
     updateButtons();
   });
 
   events.on('tourSessionStopped', () => {
+    // console.log('footer:event:tourSessionStopped');
     sessionStarted = false;
     updateButtons();
   });
 
   events.on('panoStarted', () => {
+    // console.log('footer:event:panoStarted');
     panoStarted = true;
     updateButtons();
   });
   events.on('panoStopped', () => {
+    // console.log('footer:event:panoStopped');
     panoStarted = false;
     updateButtons();
   });
 
   events.on('MediaClient:audioStarted', () => {
+    // console.log('footer:event:audioStarted');
     audioStarted = true;
     updateButtons();
   });
   events.on('MediaClient:audioStopped', () => {
+    // console.log('footer:event:audioStopped');
     audioStarted = false;
     updateButtons();
   });
 
   events.on('MediaClient:videoStarted', () => {
+    // console.log('footer:event:videoStarted');
     videoStarted = true;
     updateButtons();
   });
   events.on('MediaClient:videoStopped', () => {
+    // console.log('footer:event:videoStopped');
     videoStarted = false;
     updateButtons();
   });

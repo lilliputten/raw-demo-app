@@ -40,3 +40,14 @@ export const commonSocketAppId = isDev ? '/appId002' : '/appId003';
 
 export const mediaClientUrl = prodServerUrl;
 export const mediaClientAppId = '/appId006/';
+
+// Misc parameters...
+
+// Enable mediasoup internal logging? ('*' -- enable all logs, false -- disable)
+export const mediaSoupDebugLevel = false; // '*';
+
+// Media client state update timeout (ms)
+export const mediaClientPollDelay = isDev ? 10000 : 3000;
+
+// Enable media client state updates?
+export const enableMediaClientPolls = true; // !isDev;

@@ -51,7 +51,7 @@ export class TourSession {
   }
 
   /** @return promise */
-  start() {
+  async start() {
     if (this.started) {
       const error = new Error('Trying to start already started instance');
       // eslint-disable-next-line no-console
@@ -61,23 +61,22 @@ export class TourSession {
       throw error;
     }
     showInfo('Starting session...');
-    return this.startSocket()
-      .then(() => {
-        this.started = true;
-        this.events.emit('tourSessionStarted', { socket: this.socket });
-        showSuccess('Session started');
-      })
-      .catch((error) => {
-        // eslint-disable-next-line no-console
-        console.error('[TourSession:start]: error', error, {
-          commonSocketUrl,
-          commonSocketAppId,
-        });
-        debugger; // eslint-disable-line no-debugger
-        error = new Error('Tour session start failed: ' + error.message);
-        showError(error);
-        throw error;
+    try {
+      await this.startSocket();
+      this.started = true;
+      this.events.emit('tourSessionStarted', { socket: this.socket });
+      showSuccess('Session started');
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[TourSession:start]: error', err, {
+        commonSocketUrl,
+        commonSocketAppId,
       });
+      debugger; // eslint-disable-line no-debugger
+      const error = new Error('Tour session start failed: ' + err.message);
+      showError(error);
+      throw error;
+    }
   }
 
   stop() {
